@@ -20,6 +20,8 @@ ${APP_VERSION}</p>
 <p>The <strong>Soil Water Process Lab</strong>, Department of Agronomy,
 <strong>Kansas State University</strong>.</p>
 
+<p>If you have any questions or feedback, contact andrespatrignani@ksu.edu</p>
+
 <h3>License</h3>
 <p>Released under the <strong>MIT License</strong>.</p>
 <p style="font-size:0.72rem; color:var(--muted); line-height:1.5;">
