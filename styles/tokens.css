@@ -1,0 +1,85 @@
+/* Copyright (c) August 2026 Andres Patrignani. */
+/*
+ * tokens.css — the design system in one place.
+ *
+ * Dark, compact, technical — the lil-gui / three.js-editor idiom: a single
+ * dense sidebar of label→control rows, hairline separators instead of
+ * cards, square-ish edges, one neon accent, white type. The plotting canvas
+ * owns the space; the chrome gets out of the way.
+ *
+ * Chart series use a CVD-validated dark palette; their order is a safety
+ * property — append, never reshuffle.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* ── Type ──────────────────────────────────────────────────────────── */
+  --font-ui: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  /* ── Surfaces (darkest → lightest) ─────────────────────────────────── */
+  --bg: #0e1013;            /* page plane, behind everything */
+  --panel: #16191e;         /* sidebar, top bar, chart surface */
+  --panel-2: #1e222a;       /* input wells, rows */
+  --panel-3: #272c35;       /* hover / active row, pressed */
+  --border: #2a2f39;        /* hairline separators */
+  --border-2: #363c47;      /* stronger edges, input borders */
+
+  /* ── Ink (white case; muted stays light, not dim) ──────────────────── */
+  --ink: #f5f6f8;           /* primary — labels, headings, values */
+  --ink-2: #c3c8d2;         /* secondary — units, details, inactive */
+  --muted: #7f8794;         /* axis ticks, captions, placeholders only */
+
+  /* ── Neon accent (controls, focus, active, the Kcb curve) ────────────
+   * Green, matching the reference tool. Deliberately brighter/limier than
+   * the forest-green transpiration series (--s6) so UI chrome never reads
+   * as a plotted data value. */
+  --neon: #86dd52;          /* primary neon (lime-green) */
+  --neon-bright: #a2ee72;   /* hover / glow */
+  --neon-dim: #3f6b2c;      /* tracks, subtle fills */
+  --neon-wash: rgba(134, 221, 82, 0.13);
+  --on-neon: #0d1608;       /* ink on a neon fill (buttons) */
+
+  --danger: #ff6b6b;
+  --danger-wash: rgba(255, 107, 107, 0.12);
+  --ok: #4ade80;
+  --warn: #f4c25a;
+  --warn-wash: rgba(244, 194, 90, 0.1);
+
+  /* ── Categorical chart series (validated dark steps — do not reshuffle) */
+  --s1: #3987e5;  /* blue    */
+  --s2: #d95926;  /* orange  */
+  --s3: #199e70;  /* aqua    */
+  --s4: #c98500;  /* yellow  */
+  --s5: #d55181;  /* magenta */
+  --s6: #2fa84f;  /* green   */
+  --s7: #9085e9;  /* violet  */
+  --s8: #e66767;  /* red     */
+
+  /* sequential blue ramp for fan bands */
+  --seq-100: #16304d;
+  --seq-300: #235a94;
+  --seq-500: #3987e5;
+
+  /* ── Semantic series roles ─────────────────────────────────────────── */
+  --viz-precip: var(--s1);
+  --viz-irrig: var(--s3);
+  --viz-t: var(--s6);
+  --viz-e: var(--s4);
+  --viz-etc: var(--s2);
+  --viz-eto: #b0b6c0;
+  --viz-kcb: var(--neon);
+  --viz-kc: var(--s2);
+  --viz-stress: var(--s8);
+  --viz-storage: var(--s7);
+
+  /* ── Geometry (tight, square) ──────────────────────────────────────── */
+  --radius: 3px;
+  --radius-lg: 5px;
+  --sidebar-w: 21rem;       /* control sidebar */
+  --bar-h: 2.75rem;         /* top bar height */
+  --row-h: 1.7rem;          /* control row height */
+  --docs-w: 26rem;
+  --app-max: 88rem;         /* content cap; side margins appear past this */
+}

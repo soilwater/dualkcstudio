@@ -1,0 +1,13 @@
+{
+  "name": "dualkc-studio",
+  "private": true,
+  "version": "1.0.0",
+  "description": "DualKc Studio — FAO-56 dual crop coefficient soil water balance. A no-build static web app; open index.html through any static server.",
+  "author": "Andres Patrignani",
+  "license": "MIT",
+  "homepage": "https://dualkc.studio",
+  "type": "module",
+  "scripts": {
+    "start": "npx -y http-server -p 8123 -c-1 ."
+  }
+}

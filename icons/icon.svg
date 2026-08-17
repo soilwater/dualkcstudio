@@ -1,0 +1,5 @@
+<!-- Copyright (c) August 2026 Andres Patrignani. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#14171c"/>
+  <text x="256" y="266" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="250" font-weight="800" text-anchor="middle" dominant-baseline="central" fill="#86dd52">Kc</text>
+</svg>

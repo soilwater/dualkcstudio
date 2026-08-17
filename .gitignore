@@ -1,0 +1,20 @@
+# Editor / AI tooling
+.claude/
+
+# Internal developer notes (kept out of the public repo)
+ARCHITECTURE.md
+
+# Reference papers — third-party copyrighted works, not for redistribution
+Literature/
+
+# Dependencies (none are committed; the app has no build step)
+node_modules/
+package-lock.json
+
+# OS / editor cruft (OneDrive, macOS, Windows, common editors)
+desktop.ini
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/

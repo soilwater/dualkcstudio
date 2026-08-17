@@ -1,0 +1,345 @@
+/* Copyright (c) August 2026 Andres Patrignani. */
+/*
+ * components.css — the control-panel vocabulary, modelled on the reference
+ * tool: flat sections with uppercase muted headers and hairline separators,
+ * tight `label … control` rows, compact inputs, small rectangular buttons,
+ * square neon checkboxes. No shadows.
+ */
+
+/* Generic dark surface box (used by the rotation builder). */
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); }
+
+/* ── Groups (collapsible sidebar sections) ─────────────────────────────── */
+
+.group { border-bottom: 1px solid var(--border); }
+.group > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  user-select: none;
+}
+.group > summary::-webkit-details-marker { display: none; }
+.group > summary:hover { background: var(--panel-2); }
+.group__title {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.group__hint {
+  font-size: 0.68rem;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 55%;
+}
+.group__hint.is-ok { color: var(--neon); }
+.group__chev {
+  width: 0.45rem; height: 0.45rem;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: rotate(-45deg);
+  transition: transform 0.12s ease;
+  flex-shrink: 0;
+}
+.group[open] > summary .group__chev { transform: rotate(45deg); }
+.group__body { padding: 0.15rem 0.75rem 0.7rem; }
+
+/* ── Control rows: label left, control right ───────────────────────────── */
+
+.ctrl {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: var(--row-h);
+  padding: 0.12rem 0;
+}
+.ctrl__label {
+  flex: 0 0 42%;
+  font-size: 0.75rem;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ctrl__label .unit { color: var(--muted); font-size: 0.68rem; margin-left: 0.2rem; }
+.ctrl__field { flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.4rem; }
+.ctrl--stack { flex-direction: column; align-items: stretch; gap: 0.3rem; }
+.ctrl--stack .ctrl__label { flex: none; }
+.ctrl-wrap { display: flex; flex-direction: column; }
+.ctrl__help { font-size: 0.68rem; color: var(--muted); line-height: 1.35; margin: 0 0 0.15rem; }
+.ctrl__help.is-warn { color: var(--warn, #e0a53a); }
+
+/* detected-variable checklist (ETo calculator) */
+.tag { display: inline-flex; align-items: center; justify-content: center; width: 1.1rem; height: 1.1rem; border-radius: 3px; font-size: 0.7rem; flex-shrink: 0; }
+.tag--ok { background: rgba(134, 221, 82, 0.16); color: var(--neon); }
+.tag--off { background: var(--panel-2); color: var(--muted); }
+.varlist { display: flex; flex-direction: column; gap: 0.25rem; margin: 0.4rem 0 0.9rem; }
+.varlist__row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: var(--ink-2); }
+
+/* readout row (non-editable value, right-aligned like the reference) */
+.readout { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem; min-height: 1.5rem; }
+.readout__label { font-size: 0.75rem; color: var(--ink); }
+.readout__value { font-size: 0.75rem; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.readout__value .unit { color: var(--muted); margin-left: 0.25rem; }
+
+/* ── Inputs ────────────────────────────────────────────────────────────── */
+
+.input, .select {
+  width: 100%;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--ink);
+  background: var(--panel-2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius);
+  padding: 0.2rem 0.4rem;
+  height: 1.55rem;
+  transition: border-color 0.1s ease;
+}
+.input:hover, .select:hover { border-color: var(--muted); }
+.input:focus, .select:focus { outline: none; border-color: var(--neon); }
+.input:disabled, .select:disabled { color: var(--muted); background: var(--panel); }
+.input[type="number"] { font-variant-numeric: tabular-nums; }
+.input--num { max-width: 5rem; text-align: right; }
+.select { cursor: pointer; appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: right 0.55rem center, right 0.4rem center;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+  padding-right: 1.1rem;
+}
+.select option { background: var(--panel); color: var(--ink); }
+
+/* month + day picker: two inline dropdowns reading as one control */
+.monthday { display: flex; gap: 0.35rem; width: 100%; min-width: 0; }
+.monthday .select--month { flex: 1 1 auto; min-width: 0; }
+.monthday .select--day { flex: 0 0 4.25rem; }
+
+/* ── Buttons ───────────────────────────────────────────────────────────── */
+
+.btn {
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 550;
+  color: var(--ink);
+  background: var(--panel-2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius);
+  padding: 0.28rem 0.7rem;
+  height: 1.7rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+  transition: border-color 0.1s ease, background 0.1s ease, color 0.1s ease;
+}
+.btn:hover:not(:disabled) { border-color: var(--muted); background: var(--panel-3); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+
+.btn--primary {
+  background: var(--neon);
+  color: var(--on-neon);
+  border-color: var(--neon);
+  font-weight: 650;
+}
+.btn--primary:hover:not(:disabled) { background: var(--neon-bright); border-color: var(--neon-bright); color: var(--on-neon); }
+
+.btn--neon {
+  background: transparent;
+  color: var(--neon);
+  border-color: var(--neon-dim);
+}
+.btn--neon:hover:not(:disabled) { border-color: var(--neon); background: var(--neon-wash); color: var(--neon-bright); }
+
+.btn--sm { font-size: 0.7rem; height: 1.5rem; padding: 0.2rem 0.55rem; }
+.btn--block { width: 100%; }
+
+/* ── Checkbox (square, neon check) ─────────────────────────────────────── */
+
+.check { display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; min-height: var(--row-h); user-select: none; }
+.check input { position: absolute; opacity: 0; width: 0; height: 0; }
+.check__box {
+  flex-shrink: 0;
+  width: 0.95rem; height: 0.95rem;
+  border: 1px solid var(--border-2);
+  border-radius: 2px;
+  background: var(--panel-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.1s ease, background 0.1s ease;
+}
+.check:hover .check__box { border-color: var(--muted); }
+.check input:focus-visible + .check__box { outline: 1.5px solid var(--neon); outline-offset: 1px; }
+.check__box svg { width: 0.7rem; height: 0.7rem; stroke: var(--on-neon); stroke-width: 3; fill: none; opacity: 0; }
+.check input:checked + .check__box { background: var(--neon); border-color: var(--neon); }
+.check input:checked + .check__box svg { opacity: 1; }
+.check__text { font-size: 0.75rem; color: var(--ink); }
+.check__text small { display: block; color: var(--muted); font-size: 0.68rem; }
+
+/* ── Toggle (compact switch, for a few emphasis cases) ─────────────────── */
+
+.toggle { display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; min-height: var(--row-h); user-select: none; }
+.toggle input { position: absolute; opacity: 0; }
+.toggle__track {
+  flex-shrink: 0;
+  width: 1.7rem; height: 0.95rem;
+  border-radius: 999px;
+  background: var(--panel-3);
+  border: 1px solid var(--border-2);
+  position: relative;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.toggle__track::after {
+  content: ""; position: absolute; top: 1px; left: 1px;
+  width: 0.7rem; height: 0.7rem; border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+.toggle input:checked + .toggle__track { background: var(--neon-wash); border-color: var(--neon); }
+.toggle input:checked + .toggle__track::after { transform: translateX(0.72rem); background: var(--neon); }
+.toggle__text { font-size: 0.75rem; color: var(--ink); }
+
+/* ── Segmented (minimal, for 2–3 mode switches) ────────────────────────── */
+
+.seg { display: inline-flex; border: 1px solid var(--border-2); border-radius: var(--radius); overflow: hidden; }
+.seg--full { display: flex; width: 100%; }
+.seg--full .seg__opt { flex: 1; text-align: center; padding-left: 0.3rem; padding-right: 0.3rem; }
+.seg__opt {
+  font: inherit; font-size: 0.72rem; font-weight: 550;
+  color: var(--ink-2); background: var(--panel-2);
+  border: none; border-right: 1px solid var(--border-2);
+  padding: 0.24rem 0.6rem; cursor: pointer; white-space: nowrap;
+}
+.seg__opt:last-child { border-right: none; }
+.seg__opt:hover { color: var(--ink); }
+.seg__opt.is-active { background: var(--neon); color: var(--on-neon); font-weight: 650; }
+
+/* ── Dropzone (compact, dark) ──────────────────────────────────────────── */
+
+.dropzone {
+  border: 1px dashed var(--border-2);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  text-align: center;
+  cursor: pointer;
+  color: var(--ink-2);
+  font-size: 0.75rem;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.dropzone:hover, .dropzone.is-over { border-color: var(--neon); background: var(--neon-wash); color: var(--ink); }
+.dropzone__title { font-weight: 600; color: var(--ink); }
+
+/* ── Badges / status ───────────────────────────────────────────────────── */
+
+.badge {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  font-size: 0.66rem; font-weight: 600;
+  padding: 0.08rem 0.4rem; border-radius: 2px;
+  border: 1px solid var(--border-2);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.badge--warn { color: var(--warn); border-color: rgba(244, 194, 90, 0.35); }
+
+/* ── Callouts ──────────────────────────────────────────────────────────── */
+
+.callout { border-radius: var(--radius); padding: 0.5rem 0.65rem; font-size: 0.74rem; line-height: 1.45; border: 1px solid var(--border-2); }
+.callout--warn { background: var(--warn-wash); border-left: 2px solid var(--warn); color: #e9d3a0; }
+.callout--error { background: var(--danger-wash); border-left: 2px solid var(--danger); color: #f3b4b4; }
+.callout ul { margin: 0.2rem 0 0; padding-left: 1.1rem; }
+
+/* ── Run bar (sidebar footer) ──────────────────────────────────────────── */
+
+.runbar { display: flex; flex-direction: column; gap: 0.45rem; }
+.runbar__status { font-size: 0.7rem; color: var(--muted); min-height: 1em; font-variant-numeric: tabular-nums; }
+.runbar__status.is-error { color: var(--danger); }
+.runbar__status.is-ok { color: var(--neon); }
+
+/* ── Metric tiles (results header strip) ───────────────────────────────── */
+
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.metric { background: var(--panel); padding: 0.5rem 0.65rem; min-width: 0; }
+.metric__label { color: var(--muted); font-size: 0.62rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; overflow-wrap: break-word; }
+.metric__value { font-size: 1.05rem; font-weight: 650; color: var(--ink); font-variant-numeric: tabular-nums; margin-top: 0.1rem; }
+.metric__value .unit, .metric__value small { font-size: 0.65rem; font-weight: 500; color: var(--muted); margin-left: 0.2rem; }
+.metric--accent .metric__value { color: var(--neon); }
+
+/* ── Chart cards ───────────────────────────────────────────────────────── */
+
+/* At most two charts per row; wide cards span both. */
+.chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+@media (max-width: 68rem) { .chart-grid { grid-template-columns: 1fr; } }
+.chart-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; min-width: 0; }
+.chart-card__head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; padding: 0.6rem 0.8rem 0; }
+.chart-card__title { font-size: 0.78rem; font-weight: 600; color: var(--ink); }
+.chart-card__sub { color: var(--muted); font-size: 0.68rem; }
+.chart-card__plot { padding: 0.2rem 0.3rem 0.3rem; }
+.chart-card--wide { grid-column: 1 / -1; }
+
+/* Rotation Inputs: components + wheel share one row of the wheel's height
+   (no dead space); the components card scrolls internally (see builder.js
+   listPanel) rather than growing the row. NOTE the `>`: only the two DIRECT
+   children get column-flex — the block-row cards nested inside must keep
+   their own horizontal layout. The wheel card is 320 plot + ~40 header. */
+.rot-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.75rem; height: 22.5rem; }
+.rot-top > * { height: 100%; min-height: 0; }
+.rot-top > .card { display: flex; flex-direction: column; overflow: hidden; }
+@media (max-width: 60rem) { .rot-top { grid-template-columns: 1fr; height: auto; } .rot-top > * { height: 22.5rem; } }
+
+/* ── Tables ────────────────────────────────────────────────────────────── */
+
+.tablewrap { overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); }
+.table { width: 100%; border-collapse: collapse; font-size: 0.72rem; font-variant-numeric: tabular-nums; }
+.table th { position: sticky; top: 0; background: var(--panel-2); color: var(--muted); font-weight: 600; text-align: right; padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--border-2); white-space: nowrap; }
+.table td { text-align: right; padding: 0.25rem 0.5rem; border-bottom: 1px solid var(--border); white-space: nowrap; color: var(--ink-2); }
+.table th:first-child, .table td:first-child { text-align: left; }
+.table tbody tr:hover td { background: var(--panel-2); color: var(--ink); }
+
+/* ── Empty state ───────────────────────────────────────────────────────── */
+
+.empty { border: 1px dashed var(--border-2); border-radius: var(--radius); padding: 3rem 2rem; text-align: center; color: var(--muted); }
+.empty h3 { color: var(--ink-2); margin-bottom: 0.35rem; }
+.empty p { max-width: 34rem; margin: 0 auto; font-size: 0.8rem; }
+
+/* ── Inline SVG widgets (curve editor, multi-slider) ───────────────────── */
+
+.widget { margin: 0.35rem 0 0.1rem; }
+.widget svg { display: block; width: 100%; height: auto; }
+.widget__caption { color: var(--muted); font-size: 0.66rem; margin-top: 0.2rem; }
+.widget__legend { display: flex; flex-wrap: wrap; gap: 0.2rem 0.7rem; margin-top: 0.3rem; }
+.widget__legend-item { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.68rem; color: var(--ink-2); }
+.widget__legend-swatch { width: 0.55rem; height: 0.55rem; border-radius: 2px; flex-shrink: 0; }
+
+/* ── Home / mode cards ─────────────────────────────────────────────────── */
+
+.mode-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 0.75rem; margin-top: 1.5rem; }
+.mode-card { display: flex; flex-direction: column; gap: 0.5rem; padding: 1.1rem; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); color: inherit; transition: border-color 0.12s ease; }
+.mode-card:hover { border-color: var(--neon); color: inherit; }
+.mode-card.is-disabled { opacity: 0.5; pointer-events: none; }
+.mode-card__glyph { height: 3rem; }
+.mode-card__glyph svg { height: 100%; }
+.mode-card__name { font-size: 0.92rem; font-weight: 650; display: flex; align-items: center; gap: 0.5rem; color: var(--ink); }
+.mode-card__desc { color: var(--ink-2); font-size: 0.78rem; flex: 1; }
+
+/* section subheader inside a scroll pane (uppercase, like reference) */
+.subhead { font-size: 0.66rem; font-weight: 650; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin: 0.2rem 0 0.5rem; }
+
+/* ── Modal (manual value entry) ────────────────────────────────────────── */
+
+.modal-backdrop { position: fixed; inset: 0; z-index: 70; background: rgba(0, 0, 0, 0.55); display: flex; align-items: center; justify-content: center; padding: 2rem 1.25rem; }
+.modal { width: min(34rem, 100%); max-height: min(85vh, 100%); background: var(--panel); border: 1px solid var(--border-2); border-radius: var(--radius-lg); display: flex; flex-direction: column; overflow: hidden; }
+.modal__head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.modal__head h2 { font-size: 0.88rem; }
+.modal__body { overflow-y: auto; padding: 0.9rem 1rem 1.2rem; }

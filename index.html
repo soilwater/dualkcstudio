@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<!-- Copyright (c) August 2026 Andres Patrignani. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DualKc Studio — Soil water balance model</title>
+
+<!-- Google Analytics (gtag.js). Automatic page views are OFF; app/analytics.js
+     sends one page_view per tool as the hash router navigates. -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-7Q43996TER"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){ dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-7Q43996TER', { send_page_view: false });
+</script>
+
+<meta name="theme-color" content="#0e1013">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DualKc Studio">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<link rel="stylesheet" href="styles/tokens.css">
+<link rel="stylesheet" href="styles/base.css">
+<link rel="stylesheet" href="styles/components.css">
+
+<!-- Pinned chart library; ui/plotly.js is the only module that talks to it. -->
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+
+<script type="module" src="app/main.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <noscript>This application requires JavaScript.</noscript>
+</body>
+</html>

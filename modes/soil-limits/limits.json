@@ -1,0 +1,389 @@
+{
+  "classes": [
+    {
+      "id": "sand",
+      "label": "Sand"
+    },
+    {
+      "id": "loamySand",
+      "label": "Loamy sand"
+    },
+    {
+      "id": "sandyLoam",
+      "label": "Sandy loam"
+    },
+    {
+      "id": "loam",
+      "label": "Loam"
+    },
+    {
+      "id": "siltLoam",
+      "label": "Silt loam"
+    },
+    {
+      "id": "silt",
+      "label": "Silt"
+    },
+    {
+      "id": "sandyClayLoam",
+      "label": "Sandy clay loam"
+    },
+    {
+      "id": "clayLoam",
+      "label": "Clay loam"
+    },
+    {
+      "id": "siltyClayLoam",
+      "label": "Silty clay loam"
+    },
+    {
+      "id": "sandyClay",
+      "label": "Sandy clay"
+    },
+    {
+      "id": "siltyClay",
+      "label": "Silty clay"
+    },
+    {
+      "id": "clay",
+      "label": "Clay"
+    }
+  ],
+  "sources": [
+    {
+      "id": "fao56",
+      "label": "FAO-56 Table 19",
+      "note": "Class-mean values from Allen et al. (1998) FAO-56, Table 19 (mid-range of the tabulated field-capacity and wilting-point bands). Table 19 lists nine classes; the others show no value."
+    },
+    {
+      "id": "saxton",
+      "label": "Saxton & Rawls 2006",
+      "note": "Pedotransfer regressions (Saxton & Rawls 2006, Table 1) evaluated at the class centroid texture with 2% organic matter. WP = θ(−1500 kPa), FC = θ(−33 kPa)."
+    },
+    {
+      "id": "scott",
+      "label": "Scott et al. 2013",
+      "note": "van Genuchten retention from class-average parameters of the Oklahoma Mesonet (Scott & Ochsner 2013, via Rosetta). WP = θ(−1500 kPa). Field capacity is given at both −33 kPa and −10 kPa. Sand and silt were not sampled."
+    },
+    {
+      "id": "parker",
+      "label": "Parker et al. 2022",
+      "note": "van Genuchten retention from class-average parameters of the Kansas Mesonet (Parker et al. 2022). WP = θ(−1500 kPa). Field capacity is given at both −33 kPa and −10 kPa. Four classes were not sampled."
+    },
+    {
+      "id": "rosetta",
+      "label": "Rosetta class average",
+      "note": "van Genuchten retention from the Rosetta national class averages (Schaap et al. 2001), covering all 12 USDA classes. WP = θ(−1500 kPa). Field capacity is given at both −33 kPa and −10 kPa."
+    },
+    {
+      "id": "unit1",
+      "label": "Unit gradient 1 mm/day",
+      "note": "Field capacity as the water content where unit-gradient drainage K(θ) = 1 mm/day (van Genuchten-Mualem, Rosetta parameters), an alternative to a fixed matric potential. WP = θ(−1500 kPa)."
+    }
+  ],
+  "data": {
+    "fao56": {
+      "sand": {
+        "fc": 0.12,
+        "wp": 0.045
+      },
+      "loamySand": {
+        "fc": 0.15,
+        "wp": 0.065
+      },
+      "sandyLoam": {
+        "fc": 0.23,
+        "wp": 0.11
+      },
+      "loam": {
+        "fc": 0.25,
+        "wp": 0.12
+      },
+      "siltLoam": {
+        "fc": 0.29,
+        "wp": 0.15
+      },
+      "silt": {
+        "fc": 0.32,
+        "wp": 0.17
+      },
+      "sandyClayLoam": null,
+      "clayLoam": null,
+      "siltyClayLoam": {
+        "fc": 0.335,
+        "wp": 0.205
+      },
+      "sandyClay": null,
+      "siltyClay": {
+        "fc": 0.36,
+        "wp": 0.23
+      },
+      "clay": {
+        "fc": 0.36,
+        "wp": 0.22
+      }
+    },
+    "saxton": {
+      "sand": {
+        "wp": 0.032,
+        "fc": 0.077
+      },
+      "loamySand": {
+        "wp": 0.057,
+        "fc": 0.119
+      },
+      "sandyLoam": {
+        "wp": 0.076,
+        "fc": 0.177
+      },
+      "loam": {
+        "wp": 0.123,
+        "fc": 0.265
+      },
+      "siltLoam": {
+        "wp": 0.107,
+        "fc": 0.299
+      },
+      "silt": {
+        "wp": 0.06,
+        "fc": 0.309
+      },
+      "sandyClayLoam": {
+        "wp": 0.174,
+        "fc": 0.276
+      },
+      "clayLoam": {
+        "wp": 0.211,
+        "fc": 0.347
+      },
+      "siltyClayLoam": {
+        "wp": 0.209,
+        "fc": 0.377
+      },
+      "sandyClay": {
+        "wp": 0.258,
+        "fc": 0.368
+      },
+      "siltyClay": {
+        "wp": 0.277,
+        "fc": 0.417
+      },
+      "clay": {
+        "wp": 0.323,
+        "fc": 0.441
+      }
+    },
+    "scott": {
+      "sand": null,
+      "loamySand": {
+        "wp": 0.029,
+        "fc33": 0.091,
+        "fc10": 0.154
+      },
+      "sandyLoam": {
+        "wp": 0.056,
+        "fc33": 0.154,
+        "fc10": 0.224
+      },
+      "loam": {
+        "wp": 0.072,
+        "fc33": 0.202,
+        "fc10": 0.285
+      },
+      "siltLoam": {
+        "wp": 0.06,
+        "fc33": 0.215,
+        "fc10": 0.319
+      },
+      "silt": null,
+      "sandyClayLoam": {
+        "wp": 0.089,
+        "fc33": 0.198,
+        "fc10": 0.265
+      },
+      "clayLoam": {
+        "wp": 0.107,
+        "fc33": 0.242,
+        "fc10": 0.317
+      },
+      "siltyClayLoam": {
+        "wp": 0.119,
+        "fc33": 0.257,
+        "fc10": 0.334
+      },
+      "sandyClay": {
+        "wp": 0.139,
+        "fc33": 0.281,
+        "fc10": 0.34
+      },
+      "siltyClay": {
+        "wp": 0.169,
+        "fc33": 0.306,
+        "fc10": 0.365
+      },
+      "clay": {
+        "wp": 0.166,
+        "fc33": 0.322,
+        "fc10": 0.387
+      }
+    },
+    "parker": {
+      "sand": null,
+      "loamySand": null,
+      "sandyLoam": {
+        "wp": 0.06,
+        "fc33": 0.17,
+        "fc10": 0.243
+      },
+      "loam": {
+        "wp": 0.085,
+        "fc33": 0.216,
+        "fc10": 0.317
+      },
+      "siltLoam": {
+        "wp": 0.101,
+        "fc33": 0.252,
+        "fc10": 0.343
+      },
+      "silt": null,
+      "sandyClayLoam": {
+        "wp": 0.161,
+        "fc33": 0.326,
+        "fc10": 0.357
+      },
+      "clayLoam": {
+        "wp": 0.16,
+        "fc33": 0.293,
+        "fc10": 0.355
+      },
+      "siltyClayLoam": {
+        "wp": 0.142,
+        "fc33": 0.279,
+        "fc10": 0.354
+      },
+      "sandyClay": null,
+      "siltyClay": {
+        "wp": 0.214,
+        "fc33": 0.341,
+        "fc10": 0.395
+      },
+      "clay": {
+        "wp": 0.288,
+        "fc33": 0.415,
+        "fc10": 0.443
+      }
+    },
+    "rosetta": {
+      "sand": {
+        "wp": 0.053,
+        "fc33": 0.054,
+        "fc10": 0.073
+      },
+      "loamySand": {
+        "wp": 0.052,
+        "fc33": 0.103,
+        "fc10": 0.176
+      },
+      "sandyLoam": {
+        "wp": 0.062,
+        "fc33": 0.167,
+        "fc10": 0.247
+      },
+      "loam": {
+        "wp": 0.091,
+        "fc33": 0.235,
+        "fc10": 0.323
+      },
+      "siltLoam": {
+        "wp": 0.086,
+        "fc33": 0.294,
+        "fc10": 0.399
+      },
+      "silt": {
+        "wp": 0.069,
+        "fc33": 0.283,
+        "fc10": 0.421
+      },
+      "sandyClayLoam": {
+        "wp": 0.111,
+        "fc33": 0.228,
+        "fc10": 0.294
+      },
+      "clayLoam": {
+        "wp": 0.116,
+        "fc33": 0.255,
+        "fc10": 0.343
+      },
+      "siltyClayLoam": {
+        "wp": 0.121,
+        "fc33": 0.304,
+        "fc10": 0.411
+      },
+      "sandyClay": {
+        "wp": 0.19,
+        "fc33": 0.278,
+        "fc10": 0.318
+      },
+      "siltyClay": {
+        "wp": 0.174,
+        "fc33": 0.32,
+        "fc10": 0.396
+      },
+      "clay": {
+        "wp": 0.189,
+        "fc33": 0.332,
+        "fc10": 0.393
+      }
+    },
+    "unit1": {
+      "sand": {
+        "wp": 0.053,
+        "fc": 0.082
+      },
+      "loamySand": {
+        "wp": 0.052,
+        "fc": 0.173
+      },
+      "sandyLoam": {
+        "wp": 0.062,
+        "fc": 0.248
+      },
+      "loam": {
+        "wp": 0.091,
+        "fc": 0.315
+      },
+      "siltLoam": {
+        "wp": 0.086,
+        "fc": 0.352
+      },
+      "silt": {
+        "wp": 0.069,
+        "fc": 0.357
+      },
+      "sandyClayLoam": {
+        "wp": 0.111,
+        "fc": 0.31
+      },
+      "clayLoam": {
+        "wp": 0.116,
+        "fc": 0.35
+      },
+      "siltyClayLoam": {
+        "wp": 0.121,
+        "fc": 0.398
+      },
+      "sandyClay": {
+        "wp": 0.19,
+        "fc": 0.358
+      },
+      "siltyClay": {
+        "wp": 0.174,
+        "fc": 0.425
+      },
+      "clay": {
+        "wp": 0.189,
+        "fc": 0.424
+      }
+    }
+  }
+}
