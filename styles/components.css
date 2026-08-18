@@ -332,6 +332,8 @@
 .mode-card__glyph { height: 3rem; }
 .mode-card__glyph svg { height: 100%; }
 .mode-card__name { font-size: 0.92rem; font-weight: 650; display: flex; align-items: center; gap: 0.5rem; color: var(--ink); }
+/* External-link hint (companion app opening in a new tab). */
+.mode-card__ext { color: var(--muted); font-size: 0.8rem; font-weight: 400; }
 .mode-card__desc { color: var(--ink-2); font-size: 0.78rem; flex: 1; }
 
 /* section subheader inside a scroll pane (uppercase, like reference) */

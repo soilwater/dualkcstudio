@@ -109,6 +109,22 @@ const glyph = {
       <path d="M50 42 L58 50 L66 42"/>
     </g>
   </svg>`,
+  /* DRIP's own app badge: a dial with a droplet hand — the companion
+     irrigation-scheduling app, opened in a new tab. */
+  drip: `<svg viewBox="0 0 54 54" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <rect width="54" height="54" rx="12" fill="#5816a3"/>
+    <defs><clipPath id="dripHc"><circle cx="27" cy="27" r="19"/></clipPath></defs>
+    <g clip-path="url(#dripHc)"><path d="M 27 27 L 27 8 A 19 19 0 0 1 40.4 34.4 Z" fill="rgba(255,255,255,.16)"/></g>
+    <circle cx="27" cy="27" r="19" fill="none" stroke="#fff" stroke-width="1.7"/>
+    <circle cx="27" cy="27" r="10.7" fill="none" stroke="#fff" stroke-width="0.8" stroke-opacity=".45"/>
+    <line x1="27" y1="8"  x2="27" y2="12" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="46" y1="27" x2="42" y2="27" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="27" y1="46" x2="27" y2="42" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="8"  y1="27" x2="12" y2="27" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="27" y1="27" x2="40.4" y2="34.4" stroke="#fff" stroke-width="2.1" stroke-linecap="round"/>
+    <circle cx="27" cy="27" r="2.5" fill="#fff"/>
+    <circle cx="40.4" cy="34.4" r="2.1" fill="none" stroke="#fff" stroke-width="1.7"/>
+  </svg>`,
 };
 
 /* One uniform grid. `cat` shows as a subtle pill on each card for a hint of
@@ -154,13 +170,20 @@ const CARDS = [
     href: '#/open-meteo', glyph: glyph.openmeteo, name: 'Open-Meteo Weather', cat: 'Data & Inputs',
     desc: 'Download a ready-to-use daily weather file for any point on Earth from the free Open-Meteo archive — precipitation and FAO-56 reference ET included, no account needed.',
   },
+  {
+    href: 'https://soilwater.github.io/drip/', glyph: glyph.drip, name: 'DRIP: Daily Rootzone Irrigation Planner', cat: 'External app', external: true,
+    desc: 'A standalone field-by-field scheduler built on the single crop coefficient. Draw fields on a map, pull weather automatically, and get a daily recommendation for each one.',
+  },
 ];
 
 function card(c) {
-  return el('a', { class: 'mode-card', href: c.href },
+  const attrs = { class: 'mode-card', href: c.href };
+  if (c.external) { attrs.target = '_blank'; attrs.rel = 'noopener'; }
+  return el('a', attrs,
     el('span', { class: 'mode-card__pill' }, c.cat),
     el('div', { class: 'mode-card__glyph', html: c.glyph }),
-    el('div', { class: 'mode-card__name' }, c.name),
+    el('div', { class: 'mode-card__name' }, c.name,
+      c.external ? el('span', { class: 'mode-card__ext', 'aria-hidden': 'true' }, '↗') : null),
     el('div', { class: 'mode-card__desc' }, c.desc),
   );
 }

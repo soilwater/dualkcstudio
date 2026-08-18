@@ -8,6 +8,12 @@ Literature/
 node_modules/
 package-lock.json
 
+# package.json is a local tooling aid only (its "type": "module" lets Node
+# syntax-check the ES modules; `npm start` serves the folder). The app is a
+# no-build static site, so nothing in deployment reads it — kept out of the
+# public repo to avoid a second place the name/version could drift.
+package.json
+
 # OS / editor cruft (OneDrive, macOS, Windows, common editors)
 desktop.ini
 .DS_Store
