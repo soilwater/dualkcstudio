@@ -18,7 +18,7 @@ const IRRIG_MODES = [
 ];
 
 export function createManagementPanel({ onChange, irrigation = true } = {}) {
-  const residueIn = numInput({ value: 0, min: 0, max: 100, step: 5, onChange: changed });
+  const residueIn = numInput({ value: 50, min: 0, max: 100, step: 5, onChange: changed });
   const cnIn = numInput({ value: 85, min: 30, max: 98, step: 1, onChange: changed });
   const madIn = numInput({ value: 50, min: 5, max: 95, step: 5, onChange: changed });
   const amountIn = numInput({ value: 25, min: 1, step: 1, onChange: changed });
@@ -38,7 +38,7 @@ export function createManagementPanel({ onChange, irrigation = true } = {}) {
   const commonRows = el('div', {},
     ctrl('Amount / event', amountIn.el, { unit: 'mm' }),
     ctrl('Efficiency', effIn.el, { unit: '0–1' }),
-    ctrl('Allocation', allocIn.el, { unit: 'mm' }),
+    ctrl('Allocation', allocIn.el, { unit: 'mm', help: 'Season cap on total applied irrigation; blank = unlimited.' }),
     ctrl('Method', methodSel.el, { help: 'Sets the wetted soil fraction fw: sprinkler 1.00, furrow 0.70, drip 0.35.' }),
   );
   const manualNote = el('div', { class: 'hint' }, 'Uses the irrig column from the CSV as-is.');
@@ -50,7 +50,7 @@ export function createManagementPanel({ onChange, irrigation = true } = {}) {
   );
 
   const root = el('div', {},
-    ctrl('Residue cover', residueIn.el, { unit: '%', title: 'Fraction of soil surface covered by residue' }),
+    ctrl('Residue cover', residueIn.el, { unit: '%', title: 'Percent of soil surface covered by crop residue' }),
     ctrl('Curve number', cnIn.el, { unit: 'CN', title: 'SCS/NRCS runoff curve number' }),
     irrigation ? irrigBlock : null,
   );

@@ -78,7 +78,21 @@ export function numInput({ value, min, max, step = 'any', onChange, placeholder,
     max: max !== undefined ? String(max) : null,
     placeholder,
     value: value !== undefined && value !== null ? String(value) : '',
-    onchange: () => onChange && onChange(parseFloat(input.value)),
+    /* On blur, clamp a typed value into [min, max] (HTML number inputs only
+       enforce the range on the spinner, not on typed text). Blank is left
+       blank so "unlimited"/optional fields still work. */
+    onchange: () => {
+      const raw = input.value.trim();
+      if (raw !== '') {
+        let v = parseFloat(raw);
+        if (Number.isFinite(v)) {
+          if (min !== undefined && v < min) v = min;
+          if (max !== undefined && v > max) v = max;
+          if (String(v) !== raw) input.value = String(v);
+        }
+      }
+      onChange && onChange(parseFloat(input.value));
+    },
   });
   return {
     el: input,

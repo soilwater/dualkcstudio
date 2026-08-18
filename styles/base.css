@@ -117,6 +117,8 @@ small, .hint { color: var(--muted); font-size: 0.72rem; line-height: 1.4; }
 .navlink:hover { color: var(--ink); background: var(--panel-2); }
 
 .topbar__actions { display: flex; align-items: center; gap: 0.4rem; }
+.topbar__icon-btn { display: inline-flex; align-items: center; justify-content: center; padding: 0 0.45rem; }
+.topbar__icon-btn svg { display: block; }
 
 /* ── View outlet ───────────────────────────────────────────────────────── */
 
@@ -261,6 +263,8 @@ small, .hint { color: var(--muted); font-size: 0.72rem; line-height: 1.4; }
 .docs__body th, .docs__body td { text-align: left; padding: 0.3rem 0.45rem; border-bottom: 1px solid var(--border); vertical-align: top; }
 .docs__body th { color: var(--muted); font-weight: 600; }
 .docs__body code { background: var(--panel-2); padding: 0.05em 0.3em; border-radius: 3px; color: var(--ink); }
+/* Input-file variable names highlighted so they stand out in the docs. */
+.docs__body code.var { color: #34d1b5; font-weight: 600; }
 .docs__body .docs-note {
   background: var(--neon-wash);
   border: 1px solid var(--border-2);

@@ -24,8 +24,8 @@ const NUM_FIELDS = [
   { key: 'Zr_ini', label: 'Root ini', unit: 'm', step: 0.05, min: 0 },
   { key: 'Zr_max', label: 'Root max', unit: 'm', step: 0.1, min: 0.05 },
   { key: 'h_max', label: 'Canopy h', unit: 'm', step: 0.1, min: 0.05 },
-  { key: 'p_tab', label: 'Depletion p', unit: '–', step: 0.05, min: 0.1, max: 0.8 },
-  { key: 'fc_max', label: 'Max cover', unit: '–', step: 0.01, min: 0.1, max: 0.99 },
+  { key: 'p_tab', label: 'Depletion p', unit: '0–1', step: 0.05, min: 0.1, max: 0.8 },
+  { key: 'fc_max', label: 'Max cover', unit: '0–1', step: 0.01, min: 0.1, max: 0.99 },
   { key: 'Ky', label: 'Yield Ky', unit: '–', step: 0.05, min: 0 },
   { key: 'Ymax', label: 'Yield max', unit: 'kg/ha', step: 100, min: 0 },
 ];

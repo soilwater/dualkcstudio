@@ -2,13 +2,13 @@
 # Building a new tool
 
 How the app is put together, and the shortest path to adding a tool of your
-own. Read this once; then copy `modes/single-season/` and start.
+own. Read this once; then copy `tools/single-season/` and start.
 
 ## The app in one paragraph
 
 A single page (`index.html`) with no build step, plain ES modules, one design
 system, one shared control library, and one **mode** (tool) per folder under
-`modes/`. Every mode feeds the same water-balance engine in `core/` and shows
+`tools/`. Every mode feeds the same water-balance engine in `core/` and shows
 its results in the same shell. Nothing is bundled or transpiled — save a file,
 reload the browser.
 
@@ -24,13 +24,13 @@ styles/base.css          reset + app frame (top bar, workbench, docs drawer)
 styles/components.css    groups, control rows, buttons, cards, tables, etc.
 ui/                      shared widgets
 ui/panels/               shared input panels: weather, soil, crop, management, options
-modes/<tool>/            one folder per tool
+tools/<tool>/            one folder per tool
 kansas_north_west*.csv   bundled 46-year example weather record (raw, and with ETo)
 ```
 
 ## Add a tool in six steps
 
-1. **Make the folder.** `modes/my-tool/index.js` and `modes/my-tool/docs.js`.
+1. **Make the folder.** `tools/my-tool/index.js` and `tools/my-tool/docs.js`.
    Split further (`logic.js`, `charts.js`) only when the file gets long; keep
    any pure calculation in its own module so it can be run under Node.
 
@@ -74,10 +74,10 @@ kansas_north_west*.csv   bundled 46-year example weather record (raw, and with E
 5. **Register the route** in `app/main.js` `ROUTES`:
 
    ```js
-   { path: 'my-tool', label: 'My Tool', loader: () => import('../modes/my-tool/index.js') },
+   { path: 'my-tool', label: 'My Tool', loader: () => import('../tools/my-tool/index.js') },
    ```
 
-   and add a card in `modes/home.js` `CARDS` (href `#/my-tool`, an inline SVG
+   and add a card in `tools/home.js` `CARDS` (href `#/my-tool`, an inline SVG
    glyph, one-sentence description). That is the entire wiring.
 
 6. **Write the docs for the user, not for yourself.** `docs.js` exports
@@ -102,14 +102,14 @@ kansas_north_west*.csv   bundled 46-year example weather record (raw, and with E
 
 Plotly is the only library loaded globally. Leaflet, Leaflet.draw, Google
 Identity Services and the Earth Engine API are loaded **lazily, on first open,
-by the tool that needs them** (see `ensureLibs()` in `modes/gee-collector/` and
-`modes/spatial/`). Follow that pattern: don't add `<script>` tags to
+by the tool that needs them** (see `ensureLibs()` in `tools/gee-collector/` and
+`tools/field-scale/`). Follow that pattern: don't add `<script>` tags to
 `index.html`, and don't add a library when a hundred lines of plain JavaScript
-will do (`modes/spatial/geotiff_writer.js` is a GeoTIFF writer for exactly
+will do (`tools/field-scale/geotiff_writer.js` is a GeoTIFF writer for exactly
 that reason).
 
 If two tools are the same machinery with different data, write a factory:
-`modes/spatial/index.js` exports `createSpatialTool(config)`, and both Field
+`tools/field-scale/index.js` exports `createSpatialTool(config)`, and both Field
 Scale and Mesoscale are one-line modules calling it.
 
 ## Rules that keep it maintainable

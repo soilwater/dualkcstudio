@@ -16,7 +16,7 @@ const THETA_MAX = 0.6;
 
 const SCALARS = [
   { key: 'Ze', label: 'Evap. depth Ze', unit: 'm', step: 0.01 },
-  { key: 'REW_frac', label: 'REW / TEW', unit: '–', step: 0.05 },
+  { key: 'REW_frac', label: 'REW / TEW', unit: '0–1', step: 0.05, min: 0, max: 1, title: 'Readily-evaporable fraction of total evaporable water' },
   { key: 'Zr_profile', label: 'Profile depth', unit: 'm', step: 0.1 },
 ];
 
@@ -66,11 +66,11 @@ export function createSoilPanel({ onChange } = {}) {
 
   const root = el('div', {},
     ctrl('Texture', preset.el),
-    subhead('Surface layer  ·  θwp / θini / θfc'),
+    subhead('Surface layer  ·  θwp / θini / θfc  (m³/m³)'),
     surfaceSlider.el,
-    subhead('Root zone  ·  θwp / θini / θfc'),
+    subhead('Root zone  ·  θwp / θini / θfc  (m³/m³)'),
     rootSlider.el,
-    subhead('Subsoil  ·  θini'),
+    subhead('Subsoil  ·  θini  (m³/m³)'),
     subsoilSlider.el,
     subhead('Layers & profile'),
     ...scalarRows,

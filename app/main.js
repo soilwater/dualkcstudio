@@ -14,25 +14,28 @@
  *   }
  */
 
-import { APP_NAME, APP_TAGLINE, APP_VERSION, brandMark } from './brand.js';
+import { APP_NAME, APP_TAGLINE, APP_VERSION, APP_REPO, brandMark } from './brand.js';
 import { el, clear } from '../ui/dom.js';
+
+/* GitHub "mark" icon, injected as inline SVG on the top-bar source link. */
+const GH_ICON = `<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>`;
 import { initDocs, setDocs, toggleDocs } from './docs.js';
 import { openModal } from '../ui/components.js';
 import { ABOUT_HTML } from './about.js';
-import { isReleased } from './release.js';
 import { trackTool } from './analytics.js';
 
 const ROUTES = [
-  { path: '', label: 'Home', loader: () => import('../modes/home.js') },
-  { path: 'single-season', label: 'Single Season', loader: () => import('../modes/single-season/index.js') },
-  { path: 'probabilistic', label: 'Probabilistic & Scenario', loader: () => import('../modes/probabilistic/index.js') },
-  { path: 'rotation', label: 'Crop Rotation', loader: () => import('../modes/rotation/index.js') },
-  { path: 'cover-crop-termination', label: 'Cover Crop Termination', loader: () => import('../modes/cover-crop-termination/index.js') },
-  { path: 'eto-calculator', label: 'ETo Calculator', loader: () => import('../modes/eto-calculator/index.js') },
-  { path: 'soil-limits', label: 'Soil Water Limits', loader: () => import('../modes/soil-limits/index.js') },
-  { path: 'gee-collector', label: 'GEE Data Collector', loader: () => import('../modes/gee-collector/index.js') },
-  { path: 'spatial', label: 'Field Scale', loader: () => import('../modes/spatial/index.js') },
-  { path: 'mesoscale', label: 'Mesoscale', loader: () => import('../modes/mesoscale/index.js') },
+  { path: '', label: 'Home', loader: () => import('../tools/home.js') },
+  { path: 'single-season', label: 'Single Season', loader: () => import('../tools/single-season/index.js') },
+  { path: 'probabilistic', label: 'Probabilistic & Scenario', loader: () => import('../tools/probabilistic/index.js') },
+  { path: 'rotation', label: 'Crop Rotation', loader: () => import('../tools/rotation/index.js') },
+  { path: 'cover-crop-termination', label: 'Cover Crop Termination', loader: () => import('../tools/cover-crop-termination/index.js') },
+  { path: 'eto-calculator', label: 'ETo Calculator', loader: () => import('../tools/eto-calculator/index.js') },
+  { path: 'soil-limits', label: 'Soil Water Limits', loader: () => import('../tools/soil-limits/index.js') },
+  { path: 'gee-collector', label: 'GEE Data Collector', loader: () => import('../tools/gee-collector/index.js') },
+  { path: 'open-meteo', label: 'Open-Meteo Weather', loader: () => import('../tools/open-meteo/index.js') },
+  { path: 'field-scale', label: 'Field Scale', loader: () => import('../tools/field-scale/index.js') },
+  { path: 'mesoscale', label: 'Mesoscale', loader: () => import('../tools/mesoscale/index.js') },
 ];
 
 const views = new Map();   /* path → { mod, el } */
@@ -45,9 +48,6 @@ function currentPath() {
 
 async function showRoute() {
   const path = currentPath();
-  /* An unreleased tool is not public yet — send its direct link home rather
-     than open a tool the announcement hasn't reached. */
-  if (path && !isReleased(path)) { location.hash = '#/'; return; }
   const route = ROUTES.find(r => r.path === path);
 
   homeLink.hidden = path === '';   /* Home link only on a mode page */
@@ -99,6 +99,7 @@ function buildShell(root) {
       el('div', { class: 'topbar__actions grow', style: { justifyContent: 'flex-end' } },
         el('button', { class: 'btn btn--sm', type: 'button', onclick: openAbout, title: 'About this project' }, 'About'),
         el('button', { class: 'btn btn--sm', type: 'button', onclick: toggleDocs, title: 'Open documentation for this screen' }, '? Docs'),
+        el('a', { class: 'btn btn--sm topbar__icon-btn', href: APP_REPO, target: '_blank', rel: 'noopener', title: 'View source on GitHub', 'aria-label': 'View source on GitHub', html: GH_ICON }),
       ),
     ),
   );
