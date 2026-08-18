@@ -123,7 +123,7 @@ export function createDashboard() {
       return {
         type: 'scatter', mode: 'lines', x: vals, y: exceed, name: o.label,
         line: { color: colors[i], width: 2.25 },
-        hovertemplate: `${o.label}<br>water ≥ %{x:.0f}%%: %{y:.0f}%% of years<extra></extra>`,
+        hovertemplate: `${o.label}<br>water ≥ %{x:.0f}%: %{y:.0f}% of years<extra></extra>`,
       };
     });
     plot(riskCard.div, traces, {
@@ -147,7 +147,7 @@ export function createDashboard() {
     [[idxDry, HIGHLIGHT.dry, 'dry year (P10)'], [idxTyp, HIGHLIGHT.typical, 'typical (P50)'], [idxWet, HIGHLIGHT.wet, 'wet year (P90)']]
       .forEach(([idx, c, name]) => {
         const r = opt.runs[idx];
-        traces.push({ type: 'scatter', mode: 'lines', x: r.days.map(d => d.dap), y: r.days.map(d => d.pawFraction * 100), name, line: { color: c, width: 2.5 }, hovertemplate: `${name}<br>day %{x}: %{y:.0f}%%<extra></extra>` });
+        traces.push({ type: 'scatter', mode: 'lines', x: r.days.map(d => d.dap), y: r.days.map(d => d.pawFraction * 100), name, line: { color: c, width: 2.5 }, hovertemplate: `${name}<br>day %{x}: %{y:.0f}%<extra></extra>` });
       });
 
     const maxDap = Math.max(1, ...opt.runs.map(r => r.days.length - 1));
