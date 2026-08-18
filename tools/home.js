@@ -125,6 +125,9 @@ const glyph = {
     <circle cx="27" cy="27" r="2.5" fill="#fff"/>
     <circle cx="40.4" cy="34.4" r="2.1" fill="none" stroke="#fff" stroke-width="1.7"/>
   </svg>`,
+  /* Canopeo's own app badge (a camera aperture over a leaf): the two companion
+     canopy-cover apps, opened in a new tab. Its raster mark lives in assets/. */
+  canopeo: `<img class="mode-card__badge" src="assets/canopeo.png" alt="" width="48" height="48">`,
 };
 
 /* One uniform grid. `cat` shows as a subtle pill on each card for a hint of
@@ -173,6 +176,14 @@ const CARDS = [
   {
     href: 'https://soilwater.github.io/drip/', glyph: glyph.drip, name: 'DRIP: Daily Rootzone Irrigation Planner', cat: 'External app', external: true,
     desc: 'A standalone field-by-field scheduler built on the single crop coefficient. Draw fields on a map, pull weather automatically, and get a daily recommendation for each one.',
+  },
+  {
+    href: 'https://soilwater.github.io/canopeo-field/', glyph: glyph.canopeo, name: 'Canopeo-Field', cat: 'External app', external: true,
+    desc: 'Measure green canopy cover in the field straight from your device camera — point, capture, and read the percent green fraction on the spot.',
+  },
+  {
+    href: 'https://soilwater.github.io/canopeo-dragdrop/', glyph: glyph.canopeo, name: 'Canopeo Drag & Drop', cat: 'External app', external: true,
+    desc: 'Drag and drop RGB images in your browser to measure green canopy cover from photos you already have — fast fractional green cover, computed on your machine.',
   },
 ];
 

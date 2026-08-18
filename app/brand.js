@@ -12,7 +12,7 @@ export const APP_NAME = 'DualKc Studio';
 export const APP_TAGLINE = 'Soil water balance model';
 export const APP_DOMAIN = 'dualkc.studio';
 export const APP_REPO = 'https://github.com/soilwater/dualkcstudio';
-export const APP_VERSION = '1.1.1';
+export const APP_VERSION = '1.2.0';
 
 /** The wordmark: "DualKc" in the neon accent, "Studio" muted. */
 export function brandMark() {
