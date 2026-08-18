@@ -51,7 +51,7 @@ function create() {
   const roRange = readout('Range');
   const summaryBlock = el('div', { hidden: true, style: { marginTop: '0.55rem' } }, roFile.el, roRecords.el, roRange.el);
 
-  const zone = dropzone({ title: 'Drop weather CSV', sub: 'any columns; only a date is required', onFile: (f) => f.text().then(t => loadCsv(t, f.name)).catch(e => showError(e.message)) });
+  const zone = dropzone({ title: 'Drop weather CSV', sub: 'See Docs for the columns each method needs', onFile: (f) => f.text().then(t => loadCsv(t, f.name)).catch(e => showError(e.message)) });
   const exampleBtn = btn(EXAMPLE.label, { kind: 'neon', small: true, block: true, onClick: async () => {
     try { exampleBtn.disabled = true; const res = await fetch(EXAMPLE.url); if (!res.ok) throw new Error(`Could not fetch example (HTTP ${res.status}).`); loadCsv(await res.text(), EXAMPLE.url, { elev: EXAMPLE.elev }); }
     catch (e) { showError(e.message); } finally { exampleBtn.disabled = false; }

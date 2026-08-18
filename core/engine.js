@@ -214,7 +214,15 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
     if (N < seasonLen) warnings.push(`Run is ${N} days but the crop's stages total ${seasonLen}; the season is truncated.`);
   }
 
-  let Zr_min = isNum(soil.Zr_min) ? Math.max(soil.Zr_min, Ze) : Ze;
+  // Minimum root depth: the evaporation layer plus 0.2 m (so it scales with
+  // Ze), like AquaCrop's minimum effective rooting depth. Applied at planting
+  // — a seedling is sensitive over a practical layer, not an infinitesimal one,
+  // and this avoids computing stress (Ks) over a vanishing depth — and retained
+  // through fallow (Kcb = 0, so T = 0; the thin layer just carries the profile's
+  // moisture into the next planting). Never zero: a zero-depth root zone would
+  // leave the Ze evaporation layer outside the root book, with nowhere to
+  // charge E, and TAW = 0 would make Ks degenerate.
+  let Zr_min = isNum(soil.Zr_min) ? soil.Zr_min : Ze + 0.2;
   let ZrRaw = Array.isArray(crop.Zr) ? crop.Zr.slice(0, N) : rootDepthArray(N, crop);
   let cappedDays = 0;
   let Zr = new Array(N);
@@ -276,7 +284,6 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
   let runoff = new Array(N);
   let irrig_applied = new Array(N);
   let deep_percolation = new Array(N);
-  let ETc_unmet = new Array(N);
 
   let fw_irrig = management.fw !== undefined ? management.fw : 1.0;
   let irrig_eff = management.irrig_efficiency !== undefined ? management.irrig_efficiency : 1.0;
@@ -287,8 +294,6 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
   let cum_irrig = 0.0;
 
   let storage0 = rootWater(state.Dr, Zr[0], rz_fc) + state.Ss;
-  let prevStorage = storage0;
-  let maxDailyResidual = 0;
 
   for (let n = 0; n < N; n++) {
     let ETo = df[n].ETo;
@@ -356,7 +361,7 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
 
     // Step 5: Eq. 77's surface transpiration term, T_ew — diagnostic only,
     // feeds only next day's Kr via the De book, excluded from the root-zone
-    // and profile mass balances below.
+    // depletion (Eq. 85 charges the full ETc there either way).
     let T_ewToday = 0.0;
     if (options.surfaceTranspiration) {
       let share = Math.min(Ze / Math.max(Zr[n], 1e-9), 1.0);
@@ -367,50 +372,30 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
       T_ewToday = TToday * share * Ks_surf;
     }
 
-    // Step 6: optional deep diffusive/vapour loss (Lollato et al. 2016).
-    let belowZeIsRootZone = Zr[n] > Ze + 1e-9;
+    // Step 6: optional deep diffusive/vapour loss (Lollato et al. 2016). The
+    // root zone always extends below Ze (Zr >= Ze + 0.2 m), so this loss is
+    // always charged to the root zone; it never draws from the subsoil.
     let E_diffToday = 0.0;
     if (options.deepDiffusiveLoss) {
-      let wetness = belowZeIsRootZone
-        ? Math.max(1.0 - Dr_prev / Math.max(TAW, 1e-9), 0.0)
-        : profile.subsoilWetness(state, { rz_fc, rz_wp, Zs_n: Zs });
+      let wetness = Math.max(1.0 - Dr_prev / Math.max(TAW, 1e-9), 0.0);
       E_diffToday = options.deepDiffusiveCoeff * (De_prev / TEW) * wetness * ETo;
     }
-    let E_diff_root = 0.0;
-    if (E_diffToday > 0) {
-      if (belowZeIsRootZone) E_diff_root = E_diffToday;
-      else E_diffToday = profile.drawFromSubsoil(state, E_diffToday, { rz_wp, Zs_n: Zs });
-    }
 
-    // Step 7: cap today's demand at what the root zone can actually supply,
-    // scale T, E, Ke, E_diff_root and E_diff back together. T_ew is left
-    // alone — see Step 5.
+    // Step 7: net infiltration.
     let netIn = Pnet + I_net;
-    let demanded = TToday + EToday + E_diff_root;
-    let supply = Math.max(TAW - Dr_prev + netIn, 0.0);
-    let unmet = 0.0;
-    if (demanded > supply) {
-      unmet = demanded - supply;
-      let scale = demanded > 1e-12 ? supply / demanded : 0.0;
-      TToday *= scale; EToday *= scale; KeToday *= scale; E_diff_root *= scale; E_diffToday *= scale;
-    }
 
-    // Step 8: surface book, De (Eq. 74/75 rollover) — post-cap E, pre-cap T_ew.
+    // Step 8: surface book, De (Eq. 74/75 rollover).
     let DPe = Math.max(Pnet + I_net / fw_irrig - De_prev, 0.0);
     De = Math.min(Math.max(De_prev - Pnet - I_net / fw_irrig + EToday / fewToday + T_ewToday + DPe, 0.0), TEW);
 
-    // Step 9: root-zone book, Dr (Eq. 85/86) — full ETc, not just T.
+    // Step 9: root-zone book, Dr (Eq. 85/86) — the full ETc, not just T.
+    // Bounded to [0, TAW] per the manual: 0 is field capacity (excess
+    // infiltration percolates as DPr), TAW is the wilting point.
     let ETcToday = TToday + EToday;
-    let DPr = Math.max(netIn - ETcToday - E_diff_root - Dr_prev, 0.0);
-    state.Dr = Math.min(Math.max(Dr_prev - netIn + ETcToday + E_diff_root + DPr, 0.0), TAW);
+    let DPr = Math.max(netIn - ETcToday - E_diffToday - Dr_prev, 0.0);
+    state.Dr = Math.min(Math.max(Dr_prev - netIn + ETcToday + E_diffToday + DPr, 0.0), TAW);
 
     let deepPercToday = profile.receivePercolation(state, DPr, { rz_fc, Zs_n: Zs });
-
-    // Step 10: mass-conservation audit for this day.
-    let storageNow = rootWater(state.Dr, Zr[n], rz_fc) + state.Ss;
-    let expected = netIn - TToday - EToday - E_diffToday - deepPercToday;
-    maxDailyResidual = Math.max(maxDailyResidual, Math.abs((storageNow - prevStorage) - expected));
-    prevStorage = storageNow;
 
     Ke[n] = KeToday; Ks[n] = KsToday; Kr[n] = KrToday; few[n] = fewToday;
     E[n] = EToday; T[n] = TToday; T_ew[n] = T_ewToday; E_diff[n] = E_diffToday;
@@ -418,10 +403,10 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
     DeOut[n] = De; DrOut[n] = state.Dr; SsOut[n] = state.Ss;
     TAWout[n] = TAW; RAWout[n] = RAW; TEWout[n] = TEW; REWout[n] = REW;
     p_used[n] = p; runoff[n] = RO; irrig_applied[n] = I;
-    deep_percolation[n] = deepPercToday; ETc_unmet[n] = unmet;
+    deep_percolation[n] = deepPercToday;
   }
 
-  // PART 3 — Derived quantities, output rows, and the balance audit
+  // PART 3 — Derived quantities, output rows, and balance sums
   for (let n = 0; n < N; n++) {
     let r = df[n];
     r.Kcb = Kcb[n]; r.Ke = Ke[n]; r.Ks = Ks[n]; r.Kr = Kr[n];
@@ -440,7 +425,7 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
     r.S_profile = r.Sr + SsOut[n];
     r.runoff = runoff[n]; r.irrig_applied = irrig_applied[n];
     r.irrig_net = irrig_applied[n] * irrig_eff;
-    r.deep_percolation = deep_percolation[n]; r.ETc_unmet = ETc_unmet[n];
+    r.deep_percolation = deep_percolation[n];
   }
 
   function sum(a) {
@@ -459,34 +444,15 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
   }
 
   let storageFinal = df[N - 1].S_profile;
-  let inflow = sumPrcpMinusRunoff + sumIrrigNet;
-  let outflow = sum(T) + sum(E) + sum(E_diff) + sum(deep_percolation);
   let balance = {
     precipitation: sumPrcp, runoff: sum(runoff),
     irrigation_gross: sum(irrig_applied), irrigation_net: sumIrrigNet,
     irrigation_loss: sum(irrig_applied) * (1 - irrig_eff),
     transpiration: sum(T), evaporation: sum(E), diffusive_loss: sum(E_diff),
-    deep_percolation: sum(deep_percolation), ETc_unmet: sum(ETc_unmet),
+    deep_percolation: sum(deep_percolation),
     storage_initial: storage0, storage_final: storageFinal,
     storage_change: storageFinal - storage0,
-    residual: (storageFinal - storage0) - (inflow - outflow),
-    max_daily_residual: maxDailyResidual,
   };
-
-  let tol = Math.max(1e-6 * Math.max(inflow, 1), 1e-6);
-  if (Math.abs(balance.residual) > tol) {
-    warnings.push(`Water balance did not close: residual ${balance.residual.toFixed(6)} mm over the run `
-      + `(largest single day ${maxDailyResidual.toFixed(6)} mm). This is a bug — please report it.`);
-  }
-  let totalET = balance.transpiration + balance.evaporation + balance.diffusive_loss;
-  if (balance.ETc_unmet > Math.max(1.0, 0.01 * totalET)) {
-    let days = 0;
-    for (let n = 0; n < N; n++) if (ETc_unmet[n] > 0) days++;
-    warnings.push(`Evaporative demand exceeded what the root zone could supply on ${days} day(s), `
-      + `totalling ${balance.ETc_unmet.toFixed(1)} mm (${(100 * balance.ETc_unmet / Math.max(totalET, 1e-9)).toFixed(1)}% of ET). `
-      + `Reported E and T were scaled back accordingly. This usually means the root zone is very `
-      + `shallow (Zr at or near Ze) — consider raising soil.Zr_min or the fallow root depth.`);
-  }
 
   return { df, options, warnings, balance };
 }

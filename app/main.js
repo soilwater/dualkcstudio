@@ -50,7 +50,8 @@ async function showRoute() {
   const path = currentPath();
   const route = ROUTES.find(r => r.path === path);
 
-  homeLink.hidden = path === '';   /* Home link only on a mode page */
+  homeLink.hidden = path === '';         /* Home link only on a mode page */
+  referenceLink.hidden = path !== '';    /* Reference button only on the landing page */
 
   let view = views.get(path);
   if (!view) {
@@ -86,6 +87,9 @@ async function showRoute() {
 const homeLink = el('a', { class: 'navlink', href: '#/' }, '← Home');
 /* The current tool's name, so the user always sees which tool they're in. */
 const toolTitle = el('span', { class: 'topbar__tool' });
+/* The FAO-56 model reference — a standalone page (reference.html), opened in a
+   new tab. Shown only on the landing page. */
+const referenceLink = el('a', { class: 'btn btn--sm', href: 'reference.html', target: '_blank', rel: 'noopener', title: 'Open the FAO-56 model reference in a new tab' }, 'Reference');
 
 function buildShell(root) {
   const bar = el('header', { class: 'topbar' },
@@ -97,6 +101,7 @@ function buildShell(root) {
       homeLink,
       toolTitle,
       el('div', { class: 'topbar__actions grow', style: { justifyContent: 'flex-end' } },
+        referenceLink,
         el('button', { class: 'btn btn--sm', type: 'button', onclick: openAbout, title: 'About this project' }, 'About'),
         el('button', { class: 'btn btn--sm', type: 'button', onclick: toggleDocs, title: 'Open documentation for this screen' }, '? Docs'),
         el('a', { class: 'btn btn--sm topbar__icon-btn', href: APP_REPO, target: '_blank', rel: 'noopener', title: 'View source on GitHub', 'aria-label': 'View source on GitHub', html: GH_ICON }),

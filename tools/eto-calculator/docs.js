@@ -13,11 +13,13 @@ record. Pick the method your available variables support.</p>
 
 <h3>Workflow</h3>
 <ol>
-  <li><strong>Upload</strong> a CSV. Any columns are accepted; only a
-      <code class="var">date</code> column is required. Recognised weather columns use
-      the same names as the rest of the app: <code>tmin, tmax, rmin, rmax,
-      srad, wspd, prcp</code>, plus optional <code>vpd</code> and
-      <code>rn</code> (net radiation).</li>
+  <li><strong>Upload</strong> a CSV with a <code class="var">date</code> column and
+      the weather variables your chosen method needs (see the Methods table
+      below) — the tool computes ETo from what you provide; it does not fetch
+      any data for you. Extra or unrecognised columns are ignored. Recognised
+      weather columns use the same names as the rest of the app:
+      <code>tmin, tmax, rmin, rmax, srad, wspd, prcp</code>, plus optional
+      <code>vpd</code> and <code>rn</code> (net radiation).</li>
   <li><strong>Site</strong> — latitude and elevation. Latitude (north positive,
       south negative) drives the solar-geometry term; elevation sets air
       pressure. Not every method needs both (see the table). Both auto-fill from

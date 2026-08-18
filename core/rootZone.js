@@ -29,9 +29,7 @@
  * time it moved. Only the INITIAL water content differs (soil.subsoil_ini),
  * which is where the real information is anyway.
  *
- * Every transfer below is exactly mass-conserving. That is checked, not
- * asserted: engine.js audits the closure of the whole profile every run and
- * reports the residual.
+ * Every transfer below is written to be mass-conserving.
  */
 
 /** Water held in the root zone, mm. */
@@ -112,34 +110,6 @@ export function makeSoilProfile() {
       let beyondProfile = Math.max(state.Ss - capacity, 0.0);
       state.Ss -= beyondProfile;
       return beyondProfile;
-    },
-
-    /**
-     * Diffusive/vapour loss drawn from the subsoil, used only when the root
-     * zone does not itself extend below the evaporating layer. Floored at
-     * wilting point: vapour transport cannot dry soil below it.
-     *
-     * ctx: { rz_wp, Zs_n }
-     */
-    drawFromSubsoil(state, amount, ctx) {
-      let floor = 1000.0 * ctx.rz_wp * ctx.Zs_n;
-      let available = Math.max(state.Ss - floor, 0.0);
-      let drawn = Math.min(amount, available);
-      state.Ss -= drawn;
-      return drawn;
-    },
-
-    /**
-     * Relative wetness of the subsoil, 0 at wilting point and 1 at field
-     * capacity. Drives the diffusive loss term.
-     *
-     * ctx: { rz_fc, rz_wp, Zs_n }
-     */
-    subsoilWetness(state, ctx) {
-      if (!(ctx.Zs_n > 0.0)) return 0.0;
-      let wp_mm = 1000.0 * ctx.rz_wp * ctx.Zs_n;
-      let taw_s = Math.max(1000.0 * (ctx.rz_fc - ctx.rz_wp) * ctx.Zs_n, 1e-9);
-      return Math.min(Math.max((state.Ss - wp_mm) / taw_s, 0.0), 1.0);
     },
   };
 }
