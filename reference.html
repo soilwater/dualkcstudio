@@ -76,6 +76,8 @@
   .marker-txt{fill:var(--fig-muted); font:600 11.5px var(--sans)}
   .brace{stroke:var(--fig-ink); stroke-width:1.4; fill:none}
   .var-badge{fill:var(--fig-ink); font:600 12.5px var(--mono); paint-order:stroke; stroke:var(--fig-halo); stroke-width:4px; stroke-linejoin:round}
+  .drain-line{stroke:var(--fig-ink); stroke-width:1.6}
+  .drain-head{fill:var(--fig-ink)}
 
   /* equation cards &#8212; app dark surfaces with neon accents */
   .eqs{display:grid; gap:12px}
@@ -145,7 +147,7 @@
           <text class="tick-txt" x="96" y="78"  text-anchor="end">1.0</text>
           <text class="tick-txt" x="96" y="128" text-anchor="end">0.5</text>
           <text class="tick-txt" x="96" y="178" text-anchor="end">0</text>
-          <text class="axis-title" x="104" y="58">K_cb</text>
+          <text class="axis-title" x="50" y="109" text-anchor="middle" transform="rotate(-90 50 109)">K_cb</text>
 
           <!-- Kcb curve -->
           <polyline class="kcb-line" points="104,159 204,159 364,59 544,59 664,124"/>
@@ -153,7 +155,6 @@
           <polyline class="kcb-line" points="664,174 864,174"/>
           <circle class="kcb-dot" cx="104" cy="159" r="3.4"/>
           <circle class="kcb-dot" cx="664" cy="124" r="3.4"/>
-          <text class="lbl-sm lbl-crop" x="392" y="52" text-anchor="middle">basal crop coefficient</text>
 
           <!-- fallow wash across both panels -->
           <rect class="fallow-wash" x="664" y="44" width="200" height="456"/>
@@ -180,7 +181,7 @@
           <text class="tick-txt" x="96" y="377" text-anchor="end">1.0</text>
           <text class="tick-txt" x="96" y="456" text-anchor="end">1.5</text>
           <text class="tick-txt" x="96" y="504" text-anchor="end">1.8 m</text>
-          <text class="axis-title" x="104" y="198">Depth</text>
+          <text class="axis-title" x="50" y="357" text-anchor="middle" transform="rotate(-90 50 357)">Depth</text>
 
           <!-- stage dividers -->
           <line class="divider" x1="204" y1="44" x2="204" y2="500"/>
@@ -191,9 +192,9 @@
           <!-- band labels -->
           <text class="var-badge" x="118" y="230">Ze</text>
           <text class="lbl" x="470" y="392" text-anchor="middle">Root zone &#8201;&#183;&#8201; 0 &#8594; Zr</text>
-          <text class="lbl" x="300" y="486" text-anchor="middle">Subsoil &#8201;&#183;&#8201; Zr &#8594; Z_p &#8201; (banked water)</text>
-          <text class="lbl-sm" x="360" y="462" text-anchor="end">Zr &#8202;(root depth)</text>
-          <text class="lbl-sm" x="690" y="258">roots removed &#8594; Zr resets to minimum</text>
+          <text class="lbl" x="238" y="450" text-anchor="middle">Subsoil &#8201;&#183;&#8201; Zr &#8594; Zp</text>
+          <text class="lbl-sm" x="238" y="468" text-anchor="middle">(banked water)</text>
+          <text class="lbl-sm" x="690" y="258">Zr resets to minimum</text>
 
           <!-- time axis -->
           <text class="tick-txt" x="104" y="518" text-anchor="middle">0</text>
@@ -204,8 +205,8 @@
           <text class="axis-title" x="484" y="540" text-anchor="middle">Days after planting &#8594;</text>
 
           <!-- planting / harvest markers -->
-          <text class="marker-txt" x="104" y="212" text-anchor="middle">&#9660; plant</text>
-          <text class="marker-txt" x="664" y="212" text-anchor="middle">&#9660; harvest</text>
+          <text class="marker-txt" x="100" y="209" text-anchor="start">&#9660; plant</text>
+          <text class="marker-txt" x="660" y="209" text-anchor="start">&#9660; harvest</text>
         </svg>
       </div>
       <figcaption><b>The evaporation layer <var>Ze</var> is fixed;</b> the root zone deepens with the crop and the subsoil is whatever remains below it. At harvest the crop is removed, so <var>Zr</var> steps back to its minimum and the subsoil re-expands &#8212; but a thin root zone is always retained (never zero), which keeps the balance well-posed and carries the profile's moisture into the next planting. During the fallow <var>Kcb</var>&nbsp;=&nbsp;0, so there is no transpiration; the profile dries only through surface evaporation.</figcaption>
@@ -220,7 +221,7 @@
 
     <figure>
       <div class="figframe" style="text-align:center">
-        <svg viewBox="0 0 500 430" role="img" aria-label="A vertical soil column at one instant. From the surface down: a sand evaporation layer from 0 to Ze holding Se, an olive root-zone remainder down to Zr, and a blue subsoil holding Ss from Zr to the profile depth Z_p. A bracket on the right spans 0 to Zr, showing the root zone Sr contains the evaporation layer. A depth axis on the left marks 0, Ze, Zr and Z_p." style="min-width:420px;max-width:500px;margin:0 auto">
+        <svg viewBox="0 0 500 452" role="img" aria-label="A vertical soil column at one instant. From the surface down: a sand evaporation layer from 0 to Ze holding Se, an olive root-zone remainder down to Zr, and a blue subsoil holding Ss from Zr to the profile depth Zp. A bracket on the right spans 0 to Zr, showing the root zone Sr contains the evaporation layer. A depth axis on the left marks 0, Ze, Zr and Zp. Downward arrows below the base of the column mark deep percolation, the only drainage the model counts — water leaving the profile at Zp, not water crossing Zr into the subsoil." style="min-width:420px;max-width:500px;margin:0 auto">
           <!-- column -->
           <rect class="band-ze"   x="150" y="50"  width="170" height="54"/>
           <rect class="band-root" x="150" y="104" width="170" height="146"/>
@@ -245,7 +246,7 @@
           <text class="tick-txt" x="138" y="54"  text-anchor="end">0</text>
           <text class="var-badge" x="138" y="108" text-anchor="end">Ze</text>
           <text class="var-badge" x="138" y="254" text-anchor="end">Zr</text>
-          <text class="var-badge" x="138" y="394" text-anchor="end">Z_p</text>
+          <text class="var-badge" x="138" y="394" text-anchor="end">Zp</text>
 
           <!-- right bracket: Sr / Dr spans 0 &#8594; Zr (contains the evaporation layer) -->
           <line class="brace" x1="344" y1="50" x2="344" y2="250"/>
@@ -253,9 +254,18 @@
           <text class="var-badge" x="356" y="142">Sr, Dr</text>
           <text class="lbl-sm" x="356" y="160">root zone</text>
           <text class="lbl-sm" x="356" y="176">0 &#8594; Zr</text>
+
+          <!-- deep percolation: the only drainage counted — water leaving the profile at Zp -->
+          <line class="drain-line" x1="185" y1="391" x2="185" y2="411"/>
+          <polygon class="drain-head" points="185,419 180,409 190,409"/>
+          <line class="drain-line" x1="235" y1="391" x2="235" y2="411"/>
+          <polygon class="drain-head" points="235,419 230,409 240,409"/>
+          <line class="drain-line" x1="285" y1="391" x2="285" y2="411"/>
+          <polygon class="drain-head" points="285,419 280,409 290,409"/>
+          <text class="lbl-sm" x="235" y="440" text-anchor="middle">deep percolation</text>
         </svg>
       </div>
-      <figcaption><var>Se</var> (0&#8594;<var>Ze</var>) sits <b>inside</b> <var>Sr</var> (0&#8594;<var>Zr</var>) &#8212; so the whole profile is <var>S_profile</var>&nbsp;=&nbsp;<var>Sr</var>&nbsp;+&nbsp;<var>Ss</var>, never <var>Se</var>&nbsp;+&nbsp;<var>Sr</var>&nbsp;+&nbsp;<var>Ss</var>. The surface book <var>De</var> and root-zone book <var>Dr</var> track depletions over their own depths; the water contents <var>Se</var>, <var>Sr</var>, <var>Ss</var> are the same soil read the other way (content = capacity &#8722; depletion).</figcaption>
+      <figcaption><var>Se</var> (0&#8594;<var>Ze</var>) sits <b>inside</b> <var>Sr</var> (0&#8594;<var>Zr</var>) &#8212; so the whole profile is <var>Sp</var>&nbsp;=&nbsp;<var>Sr</var>&nbsp;+&nbsp;<var>Ss</var>, never <var>Se</var>&nbsp;+&nbsp;<var>Sr</var>&nbsp;+&nbsp;<var>Ss</var>. The surface book <var>De</var> and root-zone book <var>Dr</var> track depletions over their own depths; the water contents <var>Se</var>, <var>Sr</var>, <var>Ss</var> are the same soil read the other way (content = capacity &#8722; depletion). <b>Deep percolation</b> &#8212; the only drainage the model counts &#8212; is water leaving the profile at <var>Zp</var> (the arrows below); water crossing <var>Zr</var> into the subsoil is redistribution <i>within</i> the profile, not drainage.</figcaption>
     </figure>
   </div>
 </section>
@@ -411,7 +421,7 @@
   <div class="wrap">
     <h2>The one thing beyond the manual</h2>
     <p class="sub">FAO-56 does not define the water content of the soil below the root zone &#8212; implementations usually assume it sits at field capacity. DualKc Studio tracks it.</p>
-    <p>The subsoil (<var>Zr</var>&nbsp;&#8594;&nbsp;<var>Z_profile</var>) carries its actual water as a third store, <var>Ss</var>. As roots deepen, the newly reached slice hands its real water to the root zone &#8212; so a crop can <b>find water banked during a previous fallow</b> instead of always meeting field capacity. Water percolating past the roots enters <var>Ss</var>; whatever it cannot hold at field capacity leaves the profile as deep percolation. Everything else is strictly the manual.</p>
+    <p>The subsoil (<var>Zr</var>&nbsp;&#8594;&nbsp;<var>Zp</var>) carries its actual water as a third store, <var>Ss</var>. As roots deepen, the newly reached slice hands its real water to the root zone &#8212; so a crop can <b>find water banked during a previous fallow</b> instead of always meeting field capacity. Water percolating past the roots enters <var>Ss</var>; whatever it cannot hold at field capacity leaves the profile as deep percolation. Everything else is strictly the manual.</p>
     <div class="callout">
       <p><b>A practical minimum root depth.</b> The root zone is never allowed to collapse to the evaporation layer: it is held at <var>Ze</var>&nbsp;+&nbsp;0.2&nbsp;m at planting and retained through fallow. A seedling responds over a real layer, not an infinitesimal one; this also keeps <var>Ks</var> well-posed and gives the fallow a thin store to carry moisture into the next crop. This mirrors the minimum effective rooting depth used by models such as AquaCrop.</p>
     </div>
