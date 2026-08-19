@@ -1,387 +1,457 @@
-<!DOCTYPE html>
-<html>
-<head>
+<!doctype html>
 <meta charset="utf-8">
+<title>The FAO-56 Water Balance</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="./support.js"></script>
-</head>
-<body>
-<x-dc>
-<helmet>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-</helmet>
-<div style="--bg:#0e1013;--panel:#16191e;--panel-2:#1e222a;--border:#2a2f39;--border-2:#363c47;--ink:#f5f6f8;--ink-2:#c3c8d2;--muted:#99a1ae;--neon:#86dd52;--neon-bright:#a2ee72;--neon-wash:rgba(134,221,82,.13);--sand:#e3c887;--root-c:#93a458;--subsoil:#6c93ac;--sans:Inter,'Segoe UI',system-ui,-apple-system,sans-serif;--mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.7;-webkit-font-smoothing:antialiased">
+<style>
+  /* Matches DualKc Studio's tokens (styles/tokens.css): committed dark plane
+     with lime-neon accent. Figure panels stay light so the soil sections read. */
+  :root{
+    --bg:#0e1013; --panel:#16191e; --panel-2:#1e222a;
+    --border:#2a2f39; --border-2:#363c47;
+    --ink:#f5f6f8; --ink-2:#c3c8d2; --muted:#7f8794;
+    --neon:#86dd52; --neon-bright:#a2ee72; --neon-dim:#3f6b2c;
+    --neon-wash:rgba(134,221,82,.13);
+    --radius:3px; --radius-lg:6px;
+    --sans:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+    /* soil-band literals (read on the light figure panels) */
+    --sand:#e3c887; --root:#93a458; --subsoil:#6c93ac;
+  }
 
-<header style="padding:72px 0 40px;border-bottom:1px solid var(--border)">
-  <div style="max-width:820px;margin:0 auto;padding:0 24px">
-    <p style="font:600 12.5px/1 var(--sans);letter-spacing:.18em;text-transform:uppercase;color:var(--neon);margin:0 0 18px">DualKc Studio · Model reference</p>
-    <h1 style="font-weight:800;font-size:clamp(2.2rem,6vw,3.3rem);line-height:1.08;letter-spacing:-.02em;margin:0;text-wrap:balance;color:var(--ink)">The FAO-56 Water Balance</h1>
-    <p style="font-size:1.15rem;color:var(--ink-2);margin:20px 0 0;max-width:62ch;text-wrap:pretty;line-height:1.6">A daily <b style="color:var(--ink);font-weight:650">dual crop coefficient</b> soil water balance, implemented strictly from Allen&nbsp;et&nbsp;al. (1998) — every equation carries its number from the manual. The engine keeps <b style="color:var(--ink);font-weight:650">three soil compartments</b>: an evaporation layer, the root zone, and the subsoil below it. This page shows how those layers move as a crop grows and a fallow follows, then documents each formula against the chapter it comes from.</p>
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:var(--sans); font-size:15.5px; line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:800px; margin:0 auto; padding:0 28px}
+
+  header.masthead{padding:60px 0 32px; border-bottom:1px solid var(--border)}
+  .eyebrow{font:600 12.5px/1 var(--sans); letter-spacing:.18em; text-transform:uppercase; color:var(--neon); margin:0 0 18px}
+  h1{font-weight:750; font-size:clamp(1.85rem,4.5vw,2.55rem); line-height:1.08; letter-spacing:-.02em; margin:0; text-wrap:balance}
+  .lede{font-size:1.02rem; color:var(--ink-2); margin:20px 0 0; max-width:62ch; text-wrap:pretty}
+  .lede b{color:var(--ink); font-weight:650}
+
+  section{padding:40px 0}
+  section+section{border-top:1px solid var(--border)}
+  h2{font-weight:700; font-size:1.34rem; letter-spacing:-.015em; margin:0 0 6px; text-wrap:balance}
+  .sub{color:var(--muted); margin:0 0 26px; max-width:64ch}
+  p{max-width:66ch; color:var(--ink-2)}
+  a{color:var(--neon)} a:hover{color:var(--neon-bright)}
+
+  figure{margin:0}
+  /* figure panel: light, with its own local token set so the SVG reads dark-on-light */
+  .figframe{
+    --fig-bg:#f6f2e7; --fig-ink:#25313b; --fig-muted:#6a747f;
+    --fig-line:rgba(37,49,59,.16); --fig-line2:rgba(37,49,59,.34); --fig-halo:#f6f2e7;
+    --kcb:#4f9a32;
+    background:var(--fig-bg); border:1px solid var(--border-2); border-radius:var(--radius-lg);
+    padding:22px 20px 8px; overflow-x:auto;
+  }
+  svg{display:block; width:100%; height:auto; min-width:640px}
+  figcaption{color:var(--muted); font-size:.95rem; line-height:1.55; margin:16px 4px 8px; max-width:76ch}
+  figcaption b{color:var(--ink); font-weight:650}
+
+  /* diagram elements &#8212; bound to the figure-local (light) tokens */
+  .band-ze{fill:var(--sand)}
+  .band-root{fill:var(--root)}
+  .band-sub{fill:var(--subsoil)}
+  .fallow-wash{fill:var(--fig-ink); opacity:.05}
+  .grid{stroke:var(--fig-line); stroke-width:1}
+  .axis{stroke:var(--fig-line2); stroke-width:1.4}
+  .divider{stroke:var(--fig-line2); stroke-width:1; stroke-dasharray:2 5}
+  .zr-line{fill:none; stroke:var(--fig-ink); stroke-width:2.6}
+  .zr-reset{fill:none; stroke:var(--fig-ink); stroke-width:1.8; stroke-dasharray:4 4; opacity:.7}
+  .kcb-line{fill:none; stroke:var(--kcb); stroke-width:3}
+  .kcb-drop{fill:none; stroke:var(--kcb); stroke-width:1.8; stroke-dasharray:4 4; opacity:.8}
+  .kcb-dot{fill:var(--fig-bg); stroke:var(--kcb); stroke-width:2.4}
+  .ze-edge{stroke:rgba(0,0,0,.22); stroke-width:1; fill:none}
+  .tick-txt{fill:var(--fig-muted); font:500 12px var(--sans)}
+  .stage-txt{fill:var(--fig-muted); font:600 11.5px var(--sans); letter-spacing:.08em; text-transform:uppercase}
+  .axis-title{fill:var(--fig-muted); font:600 12px var(--sans); letter-spacing:.06em; text-transform:uppercase}
+  .lbl{fill:var(--fig-ink); font:600 13.5px var(--sans); paint-order:stroke; stroke:var(--fig-halo); stroke-width:4px; stroke-linejoin:round}
+  .lbl-sm{fill:var(--fig-ink); font:500 12px var(--sans); paint-order:stroke; stroke:var(--fig-halo); stroke-width:3.5px; stroke-linejoin:round}
+  .lbl-crop{fill:var(--kcb)}
+  .marker-txt{fill:var(--fig-muted); font:600 11.5px var(--sans)}
+  .brace{stroke:var(--fig-ink); stroke-width:1.4; fill:none}
+  .var-badge{fill:var(--fig-ink); font:600 12.5px var(--mono); paint-order:stroke; stroke:var(--fig-halo); stroke-width:4px; stroke-linejoin:round}
+
+  /* equation cards &#8212; app dark surfaces with neon accents */
+  .eqs{display:grid; gap:12px}
+  .eq{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-lg); padding:16px 18px; display:grid; grid-template-columns:auto 1fr; gap:4px 16px; align-items:baseline}
+  .eq .tag{font:600 11px var(--mono); letter-spacing:.04em; color:var(--neon); grid-column:1; white-space:nowrap; padding-top:3px}
+  .eq .body{grid-column:2}
+  .eq .name{font-weight:650; font-size:1.02rem; color:var(--ink)}
+  .eq .step{color:var(--muted); font:500 12px var(--mono); float:right}
+  .formula{font-family:var(--mono); font-size:15px; line-height:1.9; margin:8px 0 4px; overflow-x:auto; white-space:nowrap; color:var(--ink-2)}
+  .formula .op{color:var(--muted)}
+  .formula .hl{color:var(--neon)}
+  .eq .note{color:var(--muted); font-size:.94rem; margin:2px 0 0; max-width:none}
+  var{font-family:var(--mono); font-style:normal; color:var(--neon-bright); background:var(--neon-wash); padding:.02em .34em; border-radius:3px; font-size:.9em}
+
+  .chapter{font:600 12px var(--mono); letter-spacing:.06em; text-transform:uppercase; color:var(--neon); margin:30px 0 12px; padding-bottom:6px; border-bottom:1px solid var(--border)}
+  .chapter:first-of-type{margin-top:0}
+
+  .refs{display:grid; gap:13px; margin-top:2px}
+  .ref{border-left:2px solid var(--neon-dim); padding:1px 0 1px 15px}
+  .ref-name{font-weight:650; color:var(--ink); margin-bottom:2px}
+  .ref p{margin:0; color:var(--ink-2); max-width:none; font-size:.95rem}
+  .cite{color:var(--muted); font-style:italic}
+
+  .callout{background:var(--neon-wash); border:1px solid var(--border); border-left:2px solid var(--neon); border-radius:0 var(--radius-lg) var(--radius-lg) 0; padding:16px 18px; margin:22px 0}
+  .callout p{margin:0; max-width:none; color:var(--ink-2)}
+  .callout b{color:var(--ink); font-weight:650}
+
+  footer{padding:44px 0 72px; color:var(--muted); font-size:.9rem; border-top:1px solid var(--border)}
+  footer a{color:var(--neon)}
+  .foot-ref{font-family:var(--mono); font-size:.82rem; margin-top:8px; color:var(--muted)}
+
+  @media (max-width:560px){
+    body{font-size:16px}
+    .eq{grid-template-columns:1fr; gap:2px}
+    .eq .tag{grid-column:1}
+    .eq .step{display:block; float:none; margin-top:4px}
+  }
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">DualKc Studio &#183; Model reference</p>
+    <h1>The FAO-56 Water Balance</h1>
+    <p class="lede">A daily <b>dual crop coefficient</b> soil water balance, implemented strictly from Allen&nbsp;et&nbsp;al. (1998) &#8212; every equation carries its number from the manual. The engine keeps <b>three soil compartments</b>: an evaporation layer, the root zone, and the subsoil below it. This page shows how those layers move as a crop grows and a fallow follows, then documents each formula against the chapter it comes from.</p>
   </div>
 </header>
 
-<section style="padding:60px 0;border-top:1px solid var(--border)">
-  <div style="max-width:1040px;margin:0 auto;padding:0 24px">
-    <h2 style="font-weight:700;font-size:1.6rem;letter-spacing:-.015em;margin:0 0 8px;text-wrap:balance;color:var(--ink)">The three compartments over a season</h2>
-    <p style="color:var(--muted);margin:0 0 28px;max-width:64ch;line-height:1.6">Depth runs downward; time runs left to right. As the crop roots deepen, the boundary between the root zone and the subsoil drops with it — then springs back to the minimum when the crop is removed and a bare fallow begins.</p>
+<section>
+  <div class="wrap">
+    <h2>The three compartments over a season</h2>
+    <p class="sub">Depth runs downward; time runs left to right. As the crop roots deepen, the boundary between the root zone and the subsoil drops with it &#8212; then springs back to the minimum when the crop is removed and a bare fallow begins.</p>
 
-    <figure style="margin:0">
-      <div style="--fig-bg:#f6f2e7;--fig-ink:#25313b;--fig-muted:#6a747f;--fig-line:rgba(37,49,59,.16);--fig-line2:rgba(37,49,59,.34);--fig-halo:#f6f2e7;--kcb:#4f9a32;background:var(--fig-bg);border:1px solid var(--border-2);border-radius:6px;padding:24px 22px 12px;overflow-x:auto">
-        <svg viewBox="0 0 920 560" role="img" aria-label="A two-panel diagram sharing a time axis. The upper panel plots the basal crop coefficient Kcb rising from 0.15 through development to 1.15, holding through mid-season, declining in the late season, then dropping to zero for a fallow. The lower panel is a soil cross-section: a thin constant sand-colored evaporation layer at the surface, an olive root-zone band whose lower boundary deepens as roots grow and retracts during fallow, and a blue subsoil band filling the rest." style="display:block;width:100%;height:auto;min-width:680px">
-          <text x="154" y="34" text-anchor="middle" style="fill:var(--fig-muted);font:600 11.5px var(--sans);letter-spacing:.08em;text-transform:uppercase">Initial</text>
-          <text x="284" y="34" text-anchor="middle" style="fill:var(--fig-muted);font:600 11.5px var(--sans);letter-spacing:.08em;text-transform:uppercase">Development</text>
-          <text x="454" y="34" text-anchor="middle" style="fill:var(--fig-muted);font:600 11.5px var(--sans);letter-spacing:.08em;text-transform:uppercase">Mid-season</text>
-          <text x="604" y="34" text-anchor="middle" style="fill:var(--fig-muted);font:600 11.5px var(--sans);letter-spacing:.08em;text-transform:uppercase">Late</text>
-          <text x="764" y="34" text-anchor="middle" style="fill:var(--fig-muted);font:600 11.5px var(--sans);letter-spacing:.08em;text-transform:uppercase">Fallow</text>
+    <figure>
+      <div class="figframe">
+        <svg viewBox="0 0 920 560" role="img" aria-label="A two-panel diagram sharing a time axis. The upper panel plots the basal crop coefficient Kcb rising from 0.15 through development to 1.15, holding through mid-season, declining in the late season, then dropping to zero for a fallow. The lower panel is a soil cross-section: a thin constant sand-colored evaporation layer at the surface, an olive root-zone band whose lower boundary deepens as roots grow and retracts during fallow, and a blue subsoil band filling the rest.">
+          <!-- stage labels -->
+          <text class="stage-txt" x="154" y="34" text-anchor="middle">Initial</text>
+          <text class="stage-txt" x="284" y="34" text-anchor="middle">Development</text>
+          <text class="stage-txt" x="454" y="34" text-anchor="middle">Mid-season</text>
+          <text class="stage-txt" x="604" y="34" text-anchor="middle">Late</text>
+          <text class="stage-txt" x="764" y="34" text-anchor="middle">Fallow</text>
 
-          <line x1="104" y1="74" x2="864" y2="74" style="stroke:var(--fig-line);stroke-width:1"/>
-          <line x1="104" y1="124" x2="864" y2="124" style="stroke:var(--fig-line);stroke-width:1"/>
-          <line x1="104" y1="174" x2="864" y2="174" style="stroke:var(--fig-line2);stroke-width:1.4"/>
-          <text x="96" y="78" text-anchor="end" style="fill:var(--fig-muted);font:500 12px var(--sans)">1.0</text>
-          <text x="96" y="128" text-anchor="end" style="fill:var(--fig-muted);font:500 12px var(--sans)">0.5</text>
-          <text x="96" y="178" text-anchor="end" style="fill:var(--fig-muted);font:500 12px var(--sans)">0</text>
-          <text x="104" y="58" style="fill:var(--fig-muted);font:600 12px var(--sans);letter-spacing:.06em;text-transform:uppercase">Kcb</text>
+          <!-- Kcb panel gridlines -->
+          <line class="grid" x1="104" y1="74"  x2="864" y2="74"/>
+          <line class="grid" x1="104" y1="124" x2="864" y2="124"/>
+          <line class="axis" x1="104" y1="174" x2="864" y2="174"/>
+          <text class="tick-txt" x="96" y="78"  text-anchor="end">1.0</text>
+          <text class="tick-txt" x="96" y="128" text-anchor="end">0.5</text>
+          <text class="tick-txt" x="96" y="178" text-anchor="end">0</text>
+          <text class="axis-title" x="104" y="58">K_cb</text>
 
-          <polyline points="104,159 204,159 364,59 544,59 664,124" style="fill:none;stroke:var(--kcb);stroke-width:3"/>
-          <line x1="664" y1="124" x2="664" y2="174" style="fill:none;stroke:var(--kcb);stroke-width:1.8;stroke-dasharray:4 4;opacity:.8"/>
-          <polyline points="664,174 864,174" style="fill:none;stroke:var(--kcb);stroke-width:3"/>
-          <circle cx="104" cy="159" r="3.4" style="fill:var(--fig-bg);stroke:var(--kcb);stroke-width:2.4"/>
-          <circle cx="664" cy="124" r="3.4" style="fill:var(--fig-bg);stroke:var(--kcb);stroke-width:2.4"/>
-          <rect x="664" y="44" width="200" height="456" style="fill:var(--fig-ink);opacity:.05"/>
+          <!-- Kcb curve -->
+          <polyline class="kcb-line" points="104,159 204,159 364,59 544,59 664,124"/>
+          <line class="kcb-drop" x1="664" y1="124" x2="664" y2="174"/>
+          <polyline class="kcb-line" points="664,174 864,174"/>
+          <circle class="kcb-dot" cx="104" cy="159" r="3.4"/>
+          <circle class="kcb-dot" cx="664" cy="124" r="3.4"/>
+          <text class="lbl-sm lbl-crop" x="392" y="52" text-anchor="middle">basal crop coefficient</text>
 
-          <polygon points="104,270 164,270 384,468 664,468 664,270 864,270 864,500 104,500" style="fill:var(--subsoil)"/>
-          <polygon points="104,238 864,238 864,270 664,270 664,468 384,468 164,270 104,270" style="fill:var(--root-c)"/>
-          <rect x="104" y="214" width="760" height="24" style="fill:var(--sand)"/>
-          <line x1="104" y1="238" x2="864" y2="238" style="stroke:rgba(0,0,0,.22);stroke-width:1;fill:none"/>
+          <!-- fallow wash across both panels -->
+          <rect class="fallow-wash" x="664" y="44" width="200" height="456"/>
 
-          <polyline points="104,270 164,270 384,468 664,468" style="fill:none;stroke:var(--fig-ink);stroke-width:2.6"/>
-          <line x1="664" y1="468" x2="664" y2="270" style="fill:none;stroke:var(--fig-ink);stroke-width:1.8;stroke-dasharray:4 4;opacity:.7"/>
-          <polyline points="664,270 864,270" style="fill:none;stroke:var(--fig-ink);stroke-width:2.6"/>
+          <!-- soil profile: bands -->
+          <!-- subsoil first (bottom), then root zone, then sand on top -->
+          <polygon class="band-sub"  points="104,270 164,270 384,468 664,468 664,270 864,270 864,500 104,500"/>
+          <polygon class="band-root" points="104,238 864,238 864,270 664,270 664,468 384,468 164,270 104,270"/>
+          <rect class="band-ze" x="104" y="214" width="760" height="24"/>
+          <line class="ze-edge" x1="104" y1="238" x2="864" y2="238"/>
 
-          <line x1="104" y1="214" x2="104" y2="500" style="stroke:var(--fig-line2);stroke-width:1.4"/>
-          <line x1="104" y1="293" x2="864" y2="293" style="stroke:var(--fig-line);stroke-width:1"/>
-          <line x1="104" y1="373" x2="864" y2="373" style="stroke:var(--fig-line);stroke-width:1"/>
-          <line x1="104" y1="452" x2="864" y2="452" style="stroke:var(--fig-line);stroke-width:1"/>
-          <text x="96" y="218" text-anchor="end" style="fill:var(--fig-muted);font:500 12px var(--sans)">0</text>
-          <text x="96" y="297" text-anchor="end" style="fill:var(--fig-muted);font:500 12px var(--sans)">0.5</text>
-          <text x="96" y="377" text-anchor="end" style="fill:var(--fig-muted);font:500 12px var(--sans)">1.0</text>
-          <text x="96" y="456" text-anchor="end" style="fill:var(--fig-muted);font:500 12px var(--sans)">1.5</text>
-          <text x="96" y="504" text-anchor="end" style="fill:var(--fig-muted);font:500 12px var(--sans)">1.8 m</text>
-          <text x="104" y="198" style="fill:var(--fig-muted);font:600 12px var(--sans);letter-spacing:.06em;text-transform:uppercase">Depth</text>
+          <!-- root/subsoil boundary = root depth Zr(t) -->
+          <polyline class="zr-line" points="104,270 164,270 384,468 664,468"/>
+          <line class="zr-reset" x1="664" y1="468" x2="664" y2="270"/>
+          <polyline class="zr-line" points="664,270 864,270"/>
 
-          <line x1="204" y1="44" x2="204" y2="500" style="stroke:var(--fig-line2);stroke-width:1;stroke-dasharray:2 5"/>
-          <line x1="364" y1="44" x2="364" y2="500" style="stroke:var(--fig-line2);stroke-width:1;stroke-dasharray:2 5"/>
-          <line x1="544" y1="44" x2="544" y2="500" style="stroke:var(--fig-line2);stroke-width:1;stroke-dasharray:2 5"/>
-          <line x1="664" y1="44" x2="664" y2="500" style="stroke:var(--fig-line2);stroke-width:1;stroke-dasharray:2 5"/>
+          <!-- depth axis -->
+          <line class="axis" x1="104" y1="214" x2="104" y2="500"/>
+          <line class="grid" x1="104" y1="293" x2="864" y2="293"/>
+          <line class="grid" x1="104" y1="373" x2="864" y2="373"/>
+          <line class="grid" x1="104" y1="452" x2="864" y2="452"/>
+          <text class="tick-txt" x="96" y="218" text-anchor="end">0</text>
+          <text class="tick-txt" x="96" y="297" text-anchor="end">0.5</text>
+          <text class="tick-txt" x="96" y="377" text-anchor="end">1.0</text>
+          <text class="tick-txt" x="96" y="456" text-anchor="end">1.5</text>
+          <text class="tick-txt" x="96" y="504" text-anchor="end">1.8 m</text>
+          <text class="axis-title" x="104" y="198">Depth</text>
 
-          <text x="118" y="230" style="fill:var(--fig-ink);font:600 12.5px var(--mono);paint-order:stroke;stroke:var(--fig-halo);stroke-width:4px;stroke-linejoin:round">Ze</text>
-          <text x="470" y="392" text-anchor="middle" style="fill:var(--fig-ink);font:600 13.5px var(--sans);paint-order:stroke;stroke:var(--fig-halo);stroke-width:4px;stroke-linejoin:round">Root zone &#8201;·&#8201; 0 &#8594; Zr</text>
-          <text x="220" y="400" text-anchor="middle" style="fill:var(--fig-ink);font:600 13.5px var(--sans);paint-order:stroke;stroke:var(--fig-halo);stroke-width:4px;stroke-linejoin:round"><tspan x="220">Subsoil &#8201;·&#8201; Zr &#8594; Z_p</tspan><tspan x="220" dy="16">(banked water)</tspan></text>
-          <text x="690" y="258" style="fill:var(--fig-ink);font:500 12px var(--sans);paint-order:stroke;stroke:var(--fig-halo);stroke-width:3.5px;stroke-linejoin:round">Zr resets to minimum</text>
+          <!-- stage dividers -->
+          <line class="divider" x1="204" y1="44" x2="204" y2="500"/>
+          <line class="divider" x1="364" y1="44" x2="364" y2="500"/>
+          <line class="divider" x1="544" y1="44" x2="544" y2="500"/>
+          <line class="divider" x1="664" y1="44" x2="664" y2="500"/>
 
-          <text x="104" y="518" text-anchor="middle" style="fill:var(--fig-muted);font:500 12px var(--sans)">0</text>
-          <text x="304" y="518" text-anchor="middle" style="fill:var(--fig-muted);font:500 12px var(--sans)">50</text>
-          <text x="504" y="518" text-anchor="middle" style="fill:var(--fig-muted);font:500 12px var(--sans)">100</text>
-          <text x="704" y="518" text-anchor="middle" style="fill:var(--fig-muted);font:500 12px var(--sans)">150</text>
-          <text x="864" y="518" text-anchor="middle" style="fill:var(--fig-muted);font:500 12px var(--sans)">190</text>
-          <text x="484" y="540" text-anchor="middle" style="fill:var(--fig-muted);font:600 12px var(--sans);letter-spacing:.06em;text-transform:uppercase">Days after planting &#8594;</text>
+          <!-- band labels -->
+          <text class="var-badge" x="118" y="230">Ze</text>
+          <text class="lbl" x="470" y="392" text-anchor="middle">Root zone &#8201;&#183;&#8201; 0 &#8594; Zr</text>
+          <text class="lbl" x="300" y="486" text-anchor="middle">Subsoil &#8201;&#183;&#8201; Zr &#8594; Z_p &#8201; (banked water)</text>
+          <text class="lbl-sm" x="360" y="462" text-anchor="end">Zr &#8202;(root depth)</text>
+          <text class="lbl-sm" x="690" y="258">roots removed &#8594; Zr resets to minimum</text>
 
-          <text x="104" y="212" text-anchor="middle" style="fill:var(--fig-muted);font:600 11.5px var(--sans)">▼</text>
-          <text x="112" y="212" text-anchor="start" style="fill:var(--fig-muted);font:600 11.5px var(--sans)">plant</text>
-          <text x="664" y="212" text-anchor="middle" style="fill:var(--fig-muted);font:600 11.5px var(--sans)">▼</text>
-          <text x="672" y="212" text-anchor="start" style="fill:var(--fig-muted);font:600 11.5px var(--sans)">harvest</text>
+          <!-- time axis -->
+          <text class="tick-txt" x="104" y="518" text-anchor="middle">0</text>
+          <text class="tick-txt" x="304" y="518" text-anchor="middle">50</text>
+          <text class="tick-txt" x="504" y="518" text-anchor="middle">100</text>
+          <text class="tick-txt" x="704" y="518" text-anchor="middle">150</text>
+          <text class="tick-txt" x="864" y="518" text-anchor="middle">190</text>
+          <text class="axis-title" x="484" y="540" text-anchor="middle">Days after planting &#8594;</text>
+
+          <!-- planting / harvest markers -->
+          <text class="marker-txt" x="104" y="212" text-anchor="middle">&#9660; plant</text>
+          <text class="marker-txt" x="664" y="212" text-anchor="middle">&#9660; harvest</text>
         </svg>
       </div>
-      <figcaption style="color:var(--muted);font-size:.95rem;line-height:1.6;margin:18px 4px 8px;max-width:76ch"><b style="color:var(--ink);font-weight:650">The evaporation layer <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Ze</span> is fixed;</b> the root zone deepens with the crop and the subsoil is whatever remains below it. At harvest the crop is removed, so <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Zr</span> steps back to its minimum and the subsoil re-expands — but a thin root zone is always retained (never zero), which keeps the balance well-posed and carries the profile's moisture into the next planting. During the fallow <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Kcb</span>&nbsp;=&nbsp;0, so there is no transpiration; the profile dries only through surface evaporation.</figcaption>
+      <figcaption><b>The evaporation layer <var>Ze</var> is fixed;</b> the root zone deepens with the crop and the subsoil is whatever remains below it. At harvest the crop is removed, so <var>Zr</var> steps back to its minimum and the subsoil re-expands &#8212; but a thin root zone is always retained (never zero), which keeps the balance well-posed and carries the profile's moisture into the next planting. During the fallow <var>Kcb</var>&nbsp;=&nbsp;0, so there is no transpiration; the profile dries only through surface evaporation.</figcaption>
     </figure>
   </div>
 </section>
 
-<section style="padding:60px 0;border-top:1px solid var(--border)">
-  <div style="max-width:820px;margin:0 auto;padding:0 24px">
-    <h2 style="font-weight:700;font-size:1.6rem;letter-spacing:-.015em;margin:0 0 8px;text-wrap:balance;color:var(--ink)">How the depths are counted</h2>
-    <p style="color:var(--muted);margin:0 0 28px;max-width:64ch;line-height:1.6">Each state variable is the water held over a depth range. Two of them start at the surface and overlap: the evaporation layer is the top slice of the root zone.</p>
+<section>
+  <div class="wrap">
+    <h2>How the depths are counted</h2>
+    <p class="sub">Each state variable is the water held over a depth range. Two of them start at the surface and overlap: the evaporation layer is the top slice of the root zone.</p>
 
-    <figure style="margin:0">
-      <div style="--fig-bg:#f6f2e7;--fig-ink:#25313b;--fig-muted:#6a747f;--fig-line2:rgba(37,49,59,.34);--fig-halo:#f6f2e7;background:var(--fig-bg);border:1px solid var(--border-2);border-radius:6px;padding:24px 22px 12px;overflow-x:auto;text-align:center">
-        <svg viewBox="0 0 500 430" role="img" aria-label="A vertical soil column at one instant. From the surface down: a sand evaporation layer from 0 to Ze holding Se, an olive root-zone remainder down to Zr, and a blue subsoil holding Ss from Zr to the profile depth Z_p. A bracket on the right spans 0 to Zr, showing the root zone Sr contains the evaporation layer. A depth axis on the left marks 0, Ze, Zr and Z_p." style="display:block;width:100%;height:auto;min-width:420px;max-width:500px;margin:0 auto">
-          <rect x="150" y="50" width="170" height="54" style="fill:var(--sand)"/>
-          <rect x="150" y="104" width="170" height="146" style="fill:var(--root-c)"/>
-          <rect x="150" y="250" width="170" height="140" style="fill:var(--subsoil)"/>
-          <rect x="150" y="50" width="170" height="340" fill="none" style="stroke:var(--fig-line2);stroke-width:1.2"/>
-          <line x1="150" y1="104" x2="320" y2="104" style="stroke:rgba(0,0,0,.22);stroke-width:1;fill:none"/>
-          <line x1="150" y1="250" x2="320" y2="250" style="fill:none;stroke:var(--fig-ink);stroke-width:2.6"/>
+    <figure>
+      <div class="figframe" style="text-align:center">
+        <svg viewBox="0 0 500 430" role="img" aria-label="A vertical soil column at one instant. From the surface down: a sand evaporation layer from 0 to Ze holding Se, an olive root-zone remainder down to Zr, and a blue subsoil holding Ss from Zr to the profile depth Z_p. A bracket on the right spans 0 to Zr, showing the root zone Sr contains the evaporation layer. A depth axis on the left marks 0, Ze, Zr and Z_p." style="min-width:420px;max-width:500px;margin:0 auto">
+          <!-- column -->
+          <rect class="band-ze"   x="150" y="50"  width="170" height="54"/>
+          <rect class="band-root" x="150" y="104" width="170" height="146"/>
+          <rect class="band-sub"  x="150" y="250" width="170" height="140"/>
+          <rect x="150" y="50" width="170" height="340" fill="none" stroke="var(--line-2)" stroke-width="1.2"/>
+          <line class="ze-edge" x1="150" y1="104" x2="320" y2="104"/>
+          <line class="zr-line" x1="150" y1="250" x2="320" y2="250"/>
 
-          <text x="235" y="74" text-anchor="middle" style="fill:var(--fig-ink);font:500 12px var(--sans);paint-order:stroke;stroke:var(--fig-halo);stroke-width:3.5px;stroke-linejoin:round">Evaporation layer</text>
-          <text x="235" y="93" text-anchor="middle" style="fill:var(--fig-ink);font:600 12.5px var(--mono);paint-order:stroke;stroke:var(--fig-halo);stroke-width:4px;stroke-linejoin:round">Se, De</text>
-          <text x="235" y="182" text-anchor="middle" style="fill:var(--fig-ink);font:600 13.5px var(--sans);paint-order:stroke;stroke:var(--fig-halo);stroke-width:4px;stroke-linejoin:round">Root zone below Ze</text>
-          <text x="235" y="314" text-anchor="middle" style="fill:var(--fig-ink);font:500 12px var(--sans);paint-order:stroke;stroke:var(--fig-halo);stroke-width:3.5px;stroke-linejoin:round">Subsoil</text>
-          <text x="235" y="333" text-anchor="middle" style="fill:var(--fig-ink);font:600 12.5px var(--mono);paint-order:stroke;stroke:var(--fig-halo);stroke-width:4px;stroke-linejoin:round">Ss</text>
+          <!-- inside-band labels -->
+          <text class="lbl-sm" x="235" y="74"  text-anchor="middle">Evaporation layer</text>
+          <text class="var-badge" x="235" y="93" text-anchor="middle">Se, De</text>
+          <text class="lbl" x="235" y="182" text-anchor="middle">Root zone below Ze</text>
+          <text class="lbl-sm" x="235" y="314" text-anchor="middle">Subsoil</text>
+          <text class="var-badge" x="235" y="333" text-anchor="middle">Ss</text>
 
-          <line x1="150" y1="50" x2="150" y2="390" style="stroke:var(--fig-line2);stroke-width:1.4"/>
-          <line x1="144" y1="50" x2="150" y2="50" style="stroke:var(--fig-line2);stroke-width:1.4"/>
-          <line x1="144" y1="104" x2="150" y2="104" style="stroke:var(--fig-line2);stroke-width:1.4"/>
-          <line x1="144" y1="250" x2="150" y2="250" style="stroke:var(--fig-line2);stroke-width:1.4"/>
-          <line x1="144" y1="390" x2="150" y2="390" style="stroke:var(--fig-line2);stroke-width:1.4"/>
-          <text x="138" y="54" text-anchor="end" style="fill:var(--fig-muted);font:500 12px var(--sans)">0</text>
-          <text x="138" y="108" text-anchor="end" style="fill:var(--fig-ink);font:600 12.5px var(--mono);paint-order:stroke;stroke:var(--fig-halo);stroke-width:4px;stroke-linejoin:round">Ze</text>
-          <text x="138" y="254" text-anchor="end" style="fill:var(--fig-ink);font:600 12.5px var(--mono);paint-order:stroke;stroke:var(--fig-halo);stroke-width:4px;stroke-linejoin:round">Zr</text>
-          <text x="138" y="394" text-anchor="end" style="fill:var(--fig-ink);font:600 12.5px var(--mono);paint-order:stroke;stroke:var(--fig-halo);stroke-width:4px;stroke-linejoin:round">Z_p</text>
+          <!-- left depth axis -->
+          <line class="axis" x1="150" y1="50" x2="150" y2="390"/>
+          <line class="axis" x1="144" y1="50"  x2="150" y2="50"/>
+          <line class="axis" x1="144" y1="104" x2="150" y2="104"/>
+          <line class="axis" x1="144" y1="250" x2="150" y2="250"/>
+          <line class="axis" x1="144" y1="390" x2="150" y2="390"/>
+          <text class="tick-txt" x="138" y="54"  text-anchor="end">0</text>
+          <text class="var-badge" x="138" y="108" text-anchor="end">Ze</text>
+          <text class="var-badge" x="138" y="254" text-anchor="end">Zr</text>
+          <text class="var-badge" x="138" y="394" text-anchor="end">Z_p</text>
 
-          <line x1="344" y1="50" x2="344" y2="250" style="stroke:var(--fig-ink);stroke-width:1.4;fill:none"/>
-          <path d="M336,50 h8 M336,250 h8" style="stroke:var(--fig-ink);stroke-width:1.4;fill:none"/>
-          <text x="356" y="142" style="fill:var(--fig-ink);font:600 12.5px var(--mono);paint-order:stroke;stroke:var(--fig-halo);stroke-width:4px;stroke-linejoin:round">Sr, Dr</text>
-          <text x="356" y="160" style="fill:var(--fig-ink);font:500 12px var(--sans);paint-order:stroke;stroke:var(--fig-halo);stroke-width:3.5px;stroke-linejoin:round">root zone</text>
-          <text x="356" y="176" style="fill:var(--fig-ink);font:500 12px var(--sans);paint-order:stroke;stroke:var(--fig-halo);stroke-width:3.5px;stroke-linejoin:round">0 → Zr</text>
+          <!-- right bracket: Sr / Dr spans 0 &#8594; Zr (contains the evaporation layer) -->
+          <line class="brace" x1="344" y1="50" x2="344" y2="250"/>
+          <path class="brace" d="M336,50 h8 M336,250 h8"/>
+          <text class="var-badge" x="356" y="142">Sr, Dr</text>
+          <text class="lbl-sm" x="356" y="160">root zone</text>
+          <text class="lbl-sm" x="356" y="176">0 &#8594; Zr</text>
         </svg>
       </div>
-      <figcaption style="color:var(--muted);font-size:.95rem;line-height:1.6;margin:18px 4px 8px;max-width:76ch"><span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Se</span> (0&#8594;<span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Ze</span>) sits <b style="color:var(--ink);font-weight:650">inside</b> <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Sr</span> (0&#8594;<span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Zr</span>) — so the whole profile is <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">S_profile</span>&nbsp;=&nbsp;<span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Sr</span>&nbsp;+&nbsp;<span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Ss</span>, never <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Se</span>&nbsp;+&nbsp;<span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Sr</span>&nbsp;+&nbsp;<span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Ss</span>. The surface book <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">De</span> and root-zone book <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Dr</span> track depletions over their own depths; the water contents <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Se</span>, <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Sr</span>, <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Ss</span> are the same soil read the other way (content = capacity − depletion).</figcaption>
+      <figcaption><var>Se</var> (0&#8594;<var>Ze</var>) sits <b>inside</b> <var>Sr</var> (0&#8594;<var>Zr</var>) &#8212; so the whole profile is <var>S_profile</var>&nbsp;=&nbsp;<var>Sr</var>&nbsp;+&nbsp;<var>Ss</var>, never <var>Se</var>&nbsp;+&nbsp;<var>Sr</var>&nbsp;+&nbsp;<var>Ss</var>. The surface book <var>De</var> and root-zone book <var>Dr</var> track depletions over their own depths; the water contents <var>Se</var>, <var>Sr</var>, <var>Ss</var> are the same soil read the other way (content = capacity &#8722; depletion).</figcaption>
     </figure>
   </div>
 </section>
 
-<section style="padding:60px 0;border-top:1px solid var(--border)">
-  <div style="max-width:820px;margin:0 auto;padding:0 24px">
-    <h2 style="font-weight:700;font-size:1.6rem;letter-spacing:-.015em;margin:0 0 8px;text-wrap:balance;color:var(--ink)">The equations, chapter by chapter</h2>
-    <p style="color:var(--muted);margin:0 0 28px;max-width:64ch;line-height:1.6">Everything below is Allen&nbsp;et&nbsp;al. (1998). Symbols: <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">&#952;FC</span>/<span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">&#952;WP</span> field capacity / wilting point (m³ m⁻³), <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">ETo</span> reference ET, <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">u2</span> wind at 2&nbsp;m, <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">RHmin</span> minimum relative humidity, <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">h</span> canopy height. A trailing <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">&#8315;</span> means yesterday's value.</p>
+<section>
+  <div class="wrap">
+    <h2>The equations, chapter by chapter</h2>
+    <p class="sub">Everything below is Allen&nbsp;et&nbsp;al. (1998). Symbols: <var>&#952;FC</var>/<var>&#952;WP</var> field capacity / wilting point (m&#179; m&#8315;&#179;), <var>ETo</var> reference ET, <var>u2</var> wind at 2&nbsp;m, <var>RHmin</var> minimum relative humidity, <var>h</var> canopy height. A trailing <var>&#8315;</var> means yesterday's value.</p>
 
-    <div style="font:600 12px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--neon);margin:0 0 14px;padding-bottom:6px;border-bottom:1px solid var(--border)">Chapter 7 · Crop coefficients &amp; canopy</div>
-    <div style="display:grid;gap:16px">
-      <div style="background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:18px 20px">
-        <div style="display:flex;gap:16px;flex-wrap:wrap">
-          <div style="font:600 11px var(--mono);letter-spacing:.04em;color:var(--neon);white-space:nowrap;flex-shrink:0;min-width:64px;padding-top:3px">Table 17</div>
-          <div style="flex:1;min-width:220px">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px 12px">
-              <div style="font-weight:650;font-size:1.02rem;color:var(--ink)">Basal crop coefficient <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Kcb</span></div>
-              <span style="color:var(--muted);font:500 12px var(--mono);white-space:nowrap">PART 1</span>
-            </div>
-            <div style="font-family:var(--mono);font-size:15px;line-height:1.9;margin:10px 0 4px;overflow-x:auto;white-space:nowrap;color:var(--ink-2)">K<sub>cb</sub>(t): flat at <span style="color:var(--neon)">K<sub>cb,ini</sub></span> &#8594; rising &#8594; <span style="color:var(--neon)">K<sub>cb,mid</sub></span> &#8594; declining &#8594; <span style="color:var(--neon)">K<sub>cb,end</sub></span></div>
-            <p style="color:var(--muted);font-size:.94rem;margin:4px 0 0;line-height:1.6;max-width:none">The trapezoid over the four growth stages (initial, development, mid, late). Root depth <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Zr</span> grows alongside it, from the minimum at planting to the crop's maximum.</p>
-          </div>
+    <div class="chapter">Chapter 7 &#183; Crop coefficients &amp; canopy</div>
+    <div class="eqs">
+      <div class="eq">
+        <div class="tag">Table 17</div>
+        <div class="body">
+          <div class="name">Basal crop coefficient <var>Kcb</var></div>
+          <div class="formula">K<sub>cb</sub>(t): flat at <span class="hl">K<sub>cb,ini</sub></span> &#8594; rising &#8594; <span class="hl">K<sub>cb,mid</sub></span> &#8594; declining &#8594; <span class="hl">K<sub>cb,end</sub></span></div>
+          <p class="note">The trapezoid over the four growth stages (initial, development, mid, late). Root depth <var>Zr</var> grows alongside it, from the minimum at planting to the crop's maximum.</p>
         </div>
       </div>
-      <div style="background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:18px 20px">
-        <div style="display:flex;gap:16px;flex-wrap:wrap">
-          <div style="font:600 11px var(--mono);letter-spacing:.04em;color:var(--neon);white-space:nowrap;flex-shrink:0;min-width:64px;padding-top:3px">Eq. 72</div>
-          <div style="flex:1;min-width:220px">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px 12px">
-              <div style="font-weight:650;font-size:1.02rem;color:var(--ink)">Upper limit <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Kc_max</span></div>
-              <span style="color:var(--muted);font:500 12px var(--mono);white-space:nowrap">PART 1</span>
-            </div>
-            <div style="font-family:var(--mono);font-size:15px;line-height:1.9;margin:10px 0 4px;overflow-x:auto;white-space:nowrap;color:var(--ink-2)">K<sub>c,max</sub> <span style="color:var(--muted)">= max{</span> 1.2 <span style="color:var(--muted)">+</span> [0.04(u<sub>2</sub><span style="color:var(--muted)">−</span>2) <span style="color:var(--muted)">−</span> 0.004(RH<sub>min</sub><span style="color:var(--muted)">−</span>45)]&#8201;(h/3)<sup>0.3</sup> <span style="color:var(--muted)">,</span> K<sub>cb</sub><span style="color:var(--muted)">+</span>0.05 <span style="color:var(--muted)">}</span></div>
-            <p style="color:var(--muted);font-size:.94rem;margin:4px 0 0;line-height:1.6;max-width:none">The ceiling on evaporation&nbsp;+&nbsp;transpiration, corrected for the day's wind and humidity over the standing canopy.</p>
-          </div>
+      <div class="eq">
+        <div class="tag">Eq. 72</div>
+        <div class="body">
+          <div class="name">Upper limit <var>Kc_max</var></div>
+          <div class="formula">K<sub>c,max</sub> <span class="op">= max{</span> 1.2 <span class="op">+</span> [0.04(u<sub>2</sub><span class="op">&#8722;</span>2) <span class="op">&#8722;</span> 0.004(RH<sub>min</sub><span class="op">&#8722;</span>45)]&#8201;(h/3)<sup>0.3</sup> <span class="op">,</span> K<sub>cb</sub><span class="op">+</span>0.05 <span class="op">}</span></div>
+          <p class="note">The ceiling on evaporation&nbsp;+&nbsp;transpiration, corrected for the day's wind and humidity over the standing canopy.</p>
         </div>
       </div>
-      <div style="background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:18px 20px">
-        <div style="display:flex;gap:16px;flex-wrap:wrap">
-          <div style="font:600 11px var(--mono);letter-spacing:.04em;color:var(--neon);white-space:nowrap;flex-shrink:0;min-width:64px;padding-top:3px">Eq. 76</div>
-          <div style="flex:1;min-width:220px">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px 12px">
-              <div style="font-weight:650;font-size:1.02rem;color:var(--ink)">Fraction of ground covered <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">fc</span></div>
-              <span style="color:var(--muted);font:500 12px var(--mono);white-space:nowrap">PART 1</span>
-            </div>
-            <div style="font-family:var(--mono);font-size:15px;line-height:1.9;margin:10px 0 4px;overflow-x:auto;white-space:nowrap;color:var(--ink-2)">f<sub>c</sub> <span style="color:var(--muted)">= [</span> (K<sub>cb</sub><span style="color:var(--muted)">−</span>K<sub>c,min</sub>) / (K<sub>c,max</sub><span style="color:var(--muted)">−</span>K<sub>c,min</sub>) <span style="color:var(--muted)">]</span><sup>1<span style="color:var(--muted)">+</span>0.5h</sup></div>
-            <p style="color:var(--muted);font-size:.94rem;margin:4px 0 0;line-height:1.6;max-width:none">Drives the exposed-and-wetted fraction <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">few</span> below. Capped at 0.99.</p>
-          </div>
+      <div class="eq">
+        <div class="tag">Eq. 76</div>
+        <div class="body">
+          <div class="name">Fraction of ground covered <var>fc</var></div>
+          <div class="formula">f<sub>c</sub> <span class="op">= [</span> (K<sub>cb</sub><span class="op">&#8722;</span>K<sub>c,min</sub>) / (K<sub>c,max</sub><span class="op">&#8722;</span>K<sub>c,min</sub>) <span class="op">]</span><sup>1<span class="op">+</span>0.5h</sup></div>
+          <p class="note">Drives the exposed-and-wetted fraction <var>few</var> below. Capped at 0.99.</p>
         </div>
       </div>
     </div>
 
-    <div style="font:600 12px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--neon);margin:36px 0 14px;padding-bottom:6px;border-bottom:1px solid var(--border)">Chapter 7 · Soil evaporation (surface layer, book <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">De</span>)</div>
-    <div style="display:grid;gap:16px">
-      <div style="background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:18px 20px">
-        <div style="display:flex;gap:16px;flex-wrap:wrap">
-          <div style="font:600 11px var(--mono);letter-spacing:.04em;color:var(--neon);white-space:nowrap;flex-shrink:0;min-width:64px;padding-top:3px">Eq. 73</div>
-          <div style="flex:1;min-width:220px">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px 12px">
-              <div style="font-weight:650;font-size:1.02rem;color:var(--ink)">Evaporable water <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">TEW</span>, <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">REW</span></div>
-              <span style="color:var(--muted);font:500 12px var(--mono);white-space:nowrap">STEP 3</span>
-            </div>
-            <div style="font-family:var(--mono);font-size:15px;line-height:1.9;margin:10px 0 4px;overflow-x:auto;white-space:nowrap;color:var(--ink-2)">TEW <span style="color:var(--muted)">=</span> 1000&#8201;(&#952;<sub>FC</sub> <span style="color:var(--muted)">−</span> <span style="color:var(--neon)">0.5&#952;<sub>WP</sub></span>)&#8201;Z<sub>e</sub> &nbsp;&nbsp; REW <span style="color:var(--muted)">=</span> REW<sub>frac</sub>&#8201;·&#8201;TEW</div>
-            <p style="color:var(--muted);font-size:.94rem;margin:4px 0 0;line-height:1.6;max-width:none">The surface layer's water dries all the way to <b style="color:var(--ink);font-weight:650">air-dry</b> (half of wilting point) — that ½&#952;<sub>WP</sub> floor is what distinguishes it from the root zone.</p>
-          </div>
+    <div class="chapter">Chapter 7 &#183; Soil evaporation (surface layer, book <var>De</var>)</div>
+    <div class="eqs">
+      <div class="eq">
+        <div class="tag">Eq. 73</div>
+        <div class="body">
+          <div class="name">Evaporable water <var>TEW</var>, <var>REW</var></div>
+          <div class="formula">TEW <span class="op">=</span> 1000&#8201;(&#952;<sub>FC</sub> <span class="op">&#8722;</span> <span class="hl">0.5&#952;<sub>WP</sub></span>)&#8201;Z<sub>e</sub> &nbsp;&nbsp; REW <span class="op">=</span> REW<sub>frac</sub>&#8201;&#183;&#8201;TEW</div>
+          <p class="note">The surface layer's water dries all the way to <b>air-dry</b> (half of wilting point) &#8212; that &#189;&#952;<sub>WP</sub> floor is what distinguishes it from the root zone.</p>
         </div>
       </div>
-      <div style="background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:18px 20px">
-        <div style="display:flex;gap:16px;flex-wrap:wrap">
-          <div style="font:600 11px var(--mono);letter-spacing:.04em;color:var(--neon);white-space:nowrap;flex-shrink:0;min-width:64px;padding-top:3px">Eq. 74</div>
-          <div style="flex:1;min-width:220px">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px 12px">
-              <div style="font-weight:650;font-size:1.02rem;color:var(--ink)">Evaporation reduction <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Kr</span></div>
-              <span style="color:var(--muted);font:500 12px var(--mono);white-space:nowrap">STEP 3</span>
-            </div>
-            <div style="font-family:var(--mono);font-size:15px;line-height:1.9;margin:10px 0 4px;overflow-x:auto;white-space:nowrap;color:var(--ink-2)">K<sub>r</sub> <span style="color:var(--muted)">=</span> 1 &nbsp;if&nbsp; D<sub>e</sub><span style="color:var(--muted)">⁻</span> &#8804; REW &nbsp;&nbsp;<span style="color:var(--muted)">else</span>&nbsp;&nbsp; (TEW <span style="color:var(--muted)">−</span> D<sub>e</sub><span style="color:var(--muted)">⁻</span>) / (TEW <span style="color:var(--muted)">−</span> REW)</div>
-            <p style="color:var(--muted);font-size:.94rem;margin:4px 0 0;line-height:1.6;max-width:none">Full-rate evaporation until the readily-evaporable water is gone, then a linear taper to zero at air-dry.</p>
-          </div>
+      <div class="eq">
+        <div class="tag">Eq. 74</div>
+        <div class="body">
+          <div class="name">Evaporation reduction <var>Kr</var></div>
+          <div class="formula">K<sub>r</sub> <span class="op">=</span> 1 &nbsp;if&nbsp; D<sub>e</sub><span class="op">&#8315;</span> &#8804; REW &nbsp;&nbsp;<span class="op">else</span>&nbsp;&nbsp; (TEW <span class="op">&#8722;</span> D<sub>e</sub><span class="op">&#8315;</span>) / (TEW <span class="op">&#8722;</span> REW)</div>
+          <p class="note">Full-rate evaporation until the readily-evaporable water is gone, then a linear taper to zero at air-dry.</p>
         </div>
       </div>
-      <div style="background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:18px 20px">
-        <div style="display:flex;gap:16px;flex-wrap:wrap">
-          <div style="font:600 11px var(--mono);letter-spacing:.04em;color:var(--neon);white-space:nowrap;flex-shrink:0;min-width:64px;padding-top:3px">Eq. 71&#8202;·&#8202;75</div>
-          <div style="flex:1;min-width:220px">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px 12px">
-              <div style="font-weight:650;font-size:1.02rem;color:var(--ink)">Evaporation coefficient <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Ke</span> &amp; flux <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">E</span></div>
-              <span style="color:var(--muted);font:500 12px var(--mono);white-space:nowrap">STEP 3</span>
-            </div>
-            <div style="font-family:var(--mono);font-size:15px;line-height:1.9;margin:10px 0 4px;overflow-x:auto;white-space:nowrap;color:var(--ink-2)">f<sub>ew</sub> <span style="color:var(--muted)">=</span> min(1<span style="color:var(--muted)">−</span>f<sub>c</sub>, f<sub>w</sub>) &nbsp;&nbsp; K<sub>e</sub> <span style="color:var(--muted)">=</span> min[ K<sub>r</sub>(K<sub>c,max</sub><span style="color:var(--muted)">−</span>K<sub>cb</sub>), f<sub>ew</sub>K<sub>c,max</sub> ] &nbsp;&nbsp; <span style="color:var(--neon)">E <span style="color:var(--muted)">=</span> K<sub>e</sub>·ETo</span></div>
-            <p style="color:var(--muted);font-size:.94rem;margin:4px 0 0;line-height:1.6;max-width:none">Evaporation is limited both by how dry the surface is (<span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Kr</span>) and by how much soil is exposed and wet (<span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">few</span>).</p>
-          </div>
+      <div class="eq">
+        <div class="tag">Eq. 71&#8202;&#183;&#8202;75</div>
+        <div class="body">
+          <div class="name">Evaporation coefficient <var>Ke</var> &amp; flux <var>E</var></div>
+          <div class="formula">f<sub>ew</sub> <span class="op">=</span> min(1<span class="op">&#8722;</span>f<sub>c</sub>, f<sub>w</sub>) &nbsp;&nbsp; K<sub>e</sub> <span class="op">=</span> min[ K<sub>r</sub>(K<sub>c,max</sub><span class="op">&#8722;</span>K<sub>cb</sub>), f<sub>ew</sub>K<sub>c,max</sub> ] &nbsp;&nbsp; <span class="hl">E <span class="op">=</span> K<sub>e</sub>&#183;ETo</span></div>
+          <p class="note">Evaporation is limited both by how dry the surface is (<var>Kr</var>) and by how much soil is exposed and wet (<var>few</var>).</p>
         </div>
       </div>
     </div>
 
-    <div style="font:600 12px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--neon);margin:36px 0 14px;padding-bottom:6px;border-bottom:1px solid var(--border)">Chapter 8 · Transpiration &amp; water stress (root zone, book <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Dr</span>)</div>
-    <div style="display:grid;gap:16px">
-      <div style="background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:18px 20px">
-        <div style="display:flex;gap:16px;flex-wrap:wrap">
-          <div style="font:600 11px var(--mono);letter-spacing:.04em;color:var(--neon);white-space:nowrap;flex-shrink:0;min-width:64px;padding-top:3px">Eq. 82</div>
-          <div style="flex:1;min-width:220px">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px 12px">
-              <div style="font-weight:650;font-size:1.02rem;color:var(--ink)">Total available water <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">TAW</span></div>
-              <span style="color:var(--muted);font:500 12px var(--mono);white-space:nowrap">STEP 4</span>
-            </div>
-            <div style="font-family:var(--mono);font-size:15px;line-height:1.9;margin:10px 0 4px;overflow-x:auto;white-space:nowrap;color:var(--ink-2)">TAW <span style="color:var(--muted)">=</span> 1000&#8201;(&#952;<sub>FC</sub> <span style="color:var(--muted)">−</span> <span style="color:var(--neon)">&#952;<sub>WP</sub></span>)&#8201;Z<sub>r</sub></div>
-            <p style="color:var(--muted);font-size:.94rem;margin:4px 0 0;line-height:1.6;max-width:none">The plant-available water in the root zone. Its floor is the wilting point <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">&#952;WP</span> — roots cannot extract below it. Grows as <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Zr</span> deepens.</p>
-          </div>
+    <div class="chapter">Chapter 8 &#183; Transpiration &amp; water stress (root zone, book <var>Dr</var>)</div>
+    <div class="eqs">
+      <div class="eq">
+        <div class="tag">Eq. 82</div>
+        <div class="body">
+          <div class="name">Total available water <var>TAW</var></div>
+          <div class="formula">TAW <span class="op">=</span> 1000&#8201;(&#952;<sub>FC</sub> <span class="op">&#8722;</span> <span class="hl">&#952;<sub>WP</sub></span>)&#8201;Z<sub>r</sub></div>
+          <p class="note">The plant-available water in the root zone. Its floor is the wilting point <var>&#952;WP</var> &#8212; roots cannot extract below it. Grows as <var>Zr</var> deepens.</p>
         </div>
       </div>
-      <div style="background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:18px 20px">
-        <div style="display:flex;gap:16px;flex-wrap:wrap">
-          <div style="font:600 11px var(--mono);letter-spacing:.04em;color:var(--neon);white-space:nowrap;flex-shrink:0;min-width:64px;padding-top:3px">Eq. 83</div>
-          <div style="flex:1;min-width:220px">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px 12px">
-              <div style="font-weight:650;font-size:1.02rem;color:var(--ink)">Depletion fraction <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">p</span> &amp; readily-available water <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">RAW</span></div>
-              <span style="color:var(--muted);font:500 12px var(--mono);white-space:nowrap">STEP 4</span>
-            </div>
-            <div style="font-family:var(--mono);font-size:15px;line-height:1.9;margin:10px 0 4px;overflow-x:auto;white-space:nowrap;color:var(--ink-2)">p <span style="color:var(--muted)">=</span> clamp( p<sub>tab</sub> <span style="color:var(--muted)">+</span> 0.04(5 <span style="color:var(--muted)">−</span> ET<sub>c</sub>), 0.1, 0.8 ) &nbsp;&nbsp; RAW <span style="color:var(--muted)">=</span> p·TAW</div>
-            <p style="color:var(--muted);font-size:.94rem;margin:4px 0 0;line-height:1.6;max-width:none">Table 22's no-stress depletion, adjusted for the day's demand.</p>
-          </div>
+      <div class="eq">
+        <div class="tag">Eq. 83</div>
+        <div class="body">
+          <div class="name">Depletion fraction <var>p</var> &amp; readily-available water <var>RAW</var></div>
+          <div class="formula">p <span class="op">=</span> clamp( p<sub>tab</sub> <span class="op">+</span> 0.04(5 <span class="op">&#8722;</span> ET<sub>c</sub>), 0.1, 0.8 ) &nbsp;&nbsp; RAW <span class="op">=</span> p&#183;TAW</div>
+          <p class="note">Table 22's no-stress depletion, adjusted for the day's demand.</p>
         </div>
       </div>
-      <div style="background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:18px 20px">
-        <div style="display:flex;gap:16px;flex-wrap:wrap">
-          <div style="font:600 11px var(--mono);letter-spacing:.04em;color:var(--neon);white-space:nowrap;flex-shrink:0;min-width:64px;padding-top:3px">Eq. 84</div>
-          <div style="flex:1;min-width:220px">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px 12px">
-              <div style="font-weight:650;font-size:1.02rem;color:var(--ink)">Water-stress coefficient <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Ks</span></div>
-              <span style="color:var(--muted);font:500 12px var(--mono);white-space:nowrap">STEP 4</span>
-            </div>
-            <div style="font-family:var(--mono);font-size:15px;line-height:1.9;margin:10px 0 4px;overflow-x:auto;white-space:nowrap;color:var(--ink-2)">K<sub>s</sub> <span style="color:var(--muted)">=</span> 1 &nbsp;if&nbsp; D<sub>r</sub><span style="color:var(--muted)">⁻</span> &lt; RAW &nbsp;&nbsp;<span style="color:var(--muted)">else</span>&nbsp;&nbsp; (TAW <span style="color:var(--muted)">−</span> D<sub>r</sub><span style="color:var(--muted)">⁻</span>) / (TAW <span style="color:var(--muted)">−</span> RAW)</div>
-            <p style="color:var(--muted);font-size:.94rem;margin:4px 0 0;line-height:1.6;max-width:none">The <b style="color:var(--ink);font-weight:650">only</b> thing that reduces transpiration. No demand-vs-supply rescaling is applied anywhere.</p>
-          </div>
+      <div class="eq">
+        <div class="tag">Eq. 84</div>
+        <div class="body">
+          <div class="name">Water-stress coefficient <var>Ks</var></div>
+          <div class="formula">K<sub>s</sub> <span class="op">=</span> 1 &nbsp;if&nbsp; D<sub>r</sub><span class="op">&#8315;</span> &lt; RAW &nbsp;&nbsp;<span class="op">else</span>&nbsp;&nbsp; (TAW <span class="op">&#8722;</span> D<sub>r</sub><span class="op">&#8315;</span>) / (TAW <span class="op">&#8722;</span> RAW)</div>
+          <p class="note">The <b>only</b> thing that reduces transpiration. No demand-vs-supply rescaling is applied anywhere.</p>
         </div>
       </div>
-      <div style="background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:18px 20px">
-        <div style="display:flex;gap:16px;flex-wrap:wrap">
-          <div style="font:600 11px var(--mono);letter-spacing:.04em;color:var(--neon);white-space:nowrap;flex-shrink:0;min-width:64px;padding-top:3px">Eq. 80</div>
-          <div style="flex:1;min-width:220px">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px 12px">
-              <div style="font-weight:650;font-size:1.02rem;color:var(--ink)">Transpiration <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">T</span> &amp; crop ET</div>
-              <span style="color:var(--muted);font:500 12px var(--mono);white-space:nowrap">STEP 4</span>
-            </div>
-            <div style="font-family:var(--mono);font-size:15px;line-height:1.9;margin:10px 0 4px;overflow-x:auto;white-space:nowrap;color:var(--ink-2)"><span style="color:var(--neon)">T <span style="color:var(--muted)">=</span> K<sub>s</sub>·K<sub>cb</sub>·ETo</span> &nbsp;&nbsp; ET<sub>c</sub> <span style="color:var(--muted)">=</span> T <span style="color:var(--muted)">+</span> E</div>
-            <p style="color:var(--muted);font-size:.94rem;margin:4px 0 0;line-height:1.6;max-width:none">When <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Kcb</span>&nbsp;=&nbsp;0 (fallow) transpiration is exactly zero — the profile then loses water only through <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">E</span>.</p>
-          </div>
+      <div class="eq">
+        <div class="tag">Eq. 80</div>
+        <div class="body">
+          <div class="name">Transpiration <var>T</var> &amp; crop ET</div>
+          <div class="formula"><span class="hl">T <span class="op">=</span> K<sub>s</sub>&#183;K<sub>cb</sub>&#183;ETo</span> &nbsp;&nbsp; ET<sub>c</sub> <span class="op">=</span> T <span class="op">+</span> E</div>
+          <p class="note">When <var>Kcb</var>&nbsp;=&nbsp;0 (fallow) transpiration is exactly zero &#8212; the profile then loses water only through <var>E</var>.</p>
         </div>
       </div>
     </div>
 
-    <div style="font:600 12px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--neon);margin:36px 0 14px;padding-bottom:6px;border-bottom:1px solid var(--border)">Chapter 8 · The daily water balance</div>
-    <div style="display:grid;gap:16px">
-      <div style="background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:18px 20px">
-        <div style="display:flex;gap:16px;flex-wrap:wrap">
-          <div style="font:600 11px var(--mono);letter-spacing:.04em;color:var(--neon);white-space:nowrap;flex-shrink:0;min-width:64px;padding-top:3px">SCS-CN</div>
-          <div style="flex:1;min-width:220px">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px 12px">
-              <div style="font-weight:650;font-size:1.02rem;color:var(--ink)">Runoff <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">RO</span> <span style="color:var(--neon);font-size:.8em;font-weight:600">— one departure from the manual</span></div>
-              <span style="color:var(--muted);font:500 12px var(--mono);white-space:nowrap">STEP 2</span>
-            </div>
-            <div style="font-family:var(--mono);font-size:15px;line-height:1.9;margin:10px 0 4px;overflow-x:auto;white-space:nowrap;color:var(--ink-2)">S <span style="color:var(--muted)">=</span> 25400/CN <span style="color:var(--muted)">−</span> 254 &nbsp;&nbsp; RO <span style="color:var(--muted)">=</span> (P <span style="color:var(--muted)">−</span> 0.2S)² / (P <span style="color:var(--muted)">+</span> 0.8S)</div>
-            <p style="color:var(--muted);font-size:.94rem;margin:4px 0 0;line-height:1.6;max-width:none">FAO-56 leaves runoff to the caller; DualKc Studio supplies the SCS Curve Number method so a weather file alone is enough.</p>
-          </div>
+    <div class="chapter">Chapter 8 &#183; The daily water balance</div>
+    <div class="eqs">
+      <div class="eq">
+        <div class="tag">SCS-CN</div>
+        <div class="body">
+          <div class="name">Runoff <var>RO</var> &nbsp;<span style="color:var(--neon);font-size:.8em;font-weight:600">&#8212; one departure from the manual</span></div>
+          <div class="formula">S <span class="op">=</span> 25400/CN <span class="op">&#8722;</span> 254 &nbsp;&nbsp; RO <span class="op">=</span> (P <span class="op">&#8722;</span> 0.2S)&#178; / (P <span class="op">+</span> 0.8S)</div>
+          <p class="note">FAO-56 leaves runoff to the caller; DualKc Studio supplies the SCS Curve Number method so a weather file alone is enough.</p>
         </div>
       </div>
-      <div style="background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:18px 20px">
-        <div style="display:flex;gap:16px;flex-wrap:wrap">
-          <div style="font:600 11px var(--mono);letter-spacing:.04em;color:var(--neon);white-space:nowrap;flex-shrink:0;min-width:64px;padding-top:3px">Eq. 74</div>
-          <div style="flex:1;min-width:220px">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px 12px">
-              <div style="font-weight:650;font-size:1.02rem;color:var(--ink)">Surface depletion <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">De</span></div>
-              <span style="color:var(--muted);font:500 12px var(--mono);white-space:nowrap">STEP 8</span>
-            </div>
-            <div style="font-family:var(--mono);font-size:15px;line-height:1.9;margin:10px 0 4px;overflow-x:auto;white-space:nowrap;color:var(--ink-2)">D<sub>e</sub> <span style="color:var(--muted)">=</span> D<sub>e</sub><span style="color:var(--muted)">⁻</span> <span style="color:var(--muted)">−</span> (P<span style="color:var(--muted)">−</span>RO) <span style="color:var(--muted)">−</span> I/f<sub>w</sub> <span style="color:var(--muted)">+</span> E/f<sub>ew</sub> <span style="color:var(--muted)">+</span> DP<sub>e</sub> , &nbsp; bounded <span style="color:var(--neon)">[0, TEW]</span></div>
-            <p style="color:var(--muted);font-size:.94rem;margin:4px 0 0;line-height:1.6;max-width:none">The evaporation layer's running balance, capped at <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">TEW</span> (air-dry).</p>
-          </div>
+      <div class="eq">
+        <div class="tag">Eq. 74</div>
+        <div class="body">
+          <div class="name">Surface depletion <var>De</var></div>
+          <div class="formula">D<sub>e</sub> <span class="op">=</span> D<sub>e</sub><span class="op">&#8315;</span> <span class="op">&#8722;</span> (P<span class="op">&#8722;</span>RO) <span class="op">&#8722;</span> I/f<sub>w</sub> <span class="op">+</span> E/f<sub>ew</sub> <span class="op">+</span> DP<sub>e</sub> , &nbsp; bounded <span class="hl">[0, TEW]</span></div>
+          <p class="note">The evaporation layer's running balance, capped at <var>TEW</var> (air-dry).</p>
         </div>
       </div>
-      <div style="background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:18px 20px">
-        <div style="display:flex;gap:16px;flex-wrap:wrap">
-          <div style="font:600 11px var(--mono);letter-spacing:.04em;color:var(--neon);white-space:nowrap;flex-shrink:0;min-width:64px;padding-top:3px">Eq. 85</div>
-          <div style="flex:1;min-width:220px">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px 12px">
-              <div style="font-weight:650;font-size:1.02rem;color:var(--ink)">Root-zone depletion <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Dr</span></div>
-              <span style="color:var(--muted);font:500 12px var(--mono);white-space:nowrap">STEP 9</span>
-            </div>
-            <div style="font-family:var(--mono);font-size:15px;line-height:1.9;margin:10px 0 4px;overflow-x:auto;white-space:nowrap;color:var(--ink-2)">D<sub>r</sub> <span style="color:var(--muted)">=</span> D<sub>r</sub><span style="color:var(--muted)">⁻</span> <span style="color:var(--muted)">−</span> (P<span style="color:var(--muted)">−</span>RO) <span style="color:var(--muted)">−</span> I <span style="color:var(--muted)">+</span> ET<sub>c</sub> <span style="color:var(--muted)">+</span> DP<sub>r</sub> , &nbsp; bounded <span style="color:var(--neon)">[0, TAW]</span></div>
-            <p style="color:var(--muted);font-size:.94rem;margin:4px 0 0;line-height:1.6;max-width:none">The full <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">ETc</span> — transpiration <b style="color:var(--ink);font-weight:650">and</b> evaporation — depletes the root zone. Capped at <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">TAW</span> (wilting point).</p>
-          </div>
+      <div class="eq">
+        <div class="tag">Eq. 85</div>
+        <div class="body">
+          <div class="name">Root-zone depletion <var>Dr</var></div>
+          <div class="formula">D<sub>r</sub> <span class="op">=</span> D<sub>r</sub><span class="op">&#8315;</span> <span class="op">&#8722;</span> (P<span class="op">&#8722;</span>RO) <span class="op">&#8722;</span> I <span class="op">+</span> ET<sub>c</sub> <span class="op">+</span> DP<sub>r</sub> , &nbsp; bounded <span class="hl">[0, TAW]</span></div>
+          <p class="note">The full <var>ETc</var> &#8212; transpiration <b>and</b> evaporation &#8212; depletes the root zone. Capped at <var>TAW</var> (wilting point).</p>
         </div>
       </div>
-      <div style="background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:18px 20px">
-        <div style="display:flex;gap:16px;flex-wrap:wrap">
-          <div style="font:600 11px var(--mono);letter-spacing:.04em;color:var(--neon);white-space:nowrap;flex-shrink:0;min-width:64px;padding-top:3px">Eq. 86</div>
-          <div style="flex:1;min-width:220px">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px 12px">
-              <div style="font-weight:650;font-size:1.02rem;color:var(--ink)">Deep percolation <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">DP</span></div>
-              <span style="color:var(--muted);font:500 12px var(--mono);white-space:nowrap">STEP 9</span>
-            </div>
-            <div style="font-family:var(--mono);font-size:15px;line-height:1.9;margin:10px 0 4px;overflow-x:auto;white-space:nowrap;color:var(--ink-2)">DP<sub>r</sub> <span style="color:var(--muted)">=</span> max[ (P<span style="color:var(--muted)">−</span>RO) <span style="color:var(--muted)">+</span> I <span style="color:var(--muted)">−</span> ET<sub>c</sub> <span style="color:var(--muted)">−</span> D<sub>r</sub><span style="color:var(--muted)">⁻</span> , 0 ]</div>
-            <p style="color:var(--muted);font-size:.94rem;margin:4px 0 0;line-height:1.6;max-width:none">Water beyond field capacity drains downward — here, into the tracked subsoil.</p>
-          </div>
+      <div class="eq">
+        <div class="tag">Eq. 86</div>
+        <div class="body">
+          <div class="name">Deep percolation <var>DP</var></div>
+          <div class="formula">DP<sub>r</sub> <span class="op">=</span> max[ (P<span class="op">&#8722;</span>RO) <span class="op">+</span> I <span class="op">&#8722;</span> ET<sub>c</sub> <span class="op">&#8722;</span> D<sub>r</sub><span class="op">&#8315;</span> , 0 ]</div>
+          <p class="note">Water beyond field capacity drains downward &#8212; here, into the tracked subsoil.</p>
         </div>
       </div>
     </div>
 
-    <div style="font:600 12px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--neon);margin:36px 0 14px;padding-bottom:6px;border-bottom:1px solid var(--border)">FAO-33 · Water-limited yield (Doorenbos &amp; Kassam, 1979)</div>
-    <div style="display:grid;gap:16px">
-      <div style="background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:18px 20px">
-        <div style="display:flex;gap:16px;flex-wrap:wrap">
-          <div style="font:600 11px var(--mono);letter-spacing:.04em;color:var(--neon);white-space:nowrap;flex-shrink:0;min-width:64px;padding-top:3px">FAO-33</div>
-          <div style="flex:1;min-width:220px">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px 12px">
-              <div style="font-weight:650;font-size:1.02rem;color:var(--ink)">Yield penalty <span style="color:var(--neon);font-size:.8em;font-weight:600">— on transpiration, not ET</span></div>
-              <span style="color:var(--muted);font:500 12px var(--mono);white-space:nowrap">curves.js</span>
-            </div>
-            <div style="font-family:var(--mono);font-size:15px;line-height:1.9;margin:10px 0 4px;overflow-x:auto;white-space:nowrap;color:var(--ink-2)">1 <span style="color:var(--muted)">−</span> Y/Y<sub>max</sub> <span style="color:var(--muted)">=</span> K<sub>y</sub> ( 1 <span style="color:var(--muted)">−</span> <span style="color:var(--neon)">T / T<sub>x</sub></span> ) , &nbsp; T<sub>x</sub> <span style="color:var(--muted)">=</span> K<sub>cb</sub>·ETo</div>
-            <p style="color:var(--muted);font-size:.94rem;margin:4px 0 0;line-height:1.6;max-width:none">The water–yield production function. This engine applies it to the ratio of actual to potential <b style="color:var(--ink);font-weight:650">transpiration</b> (<span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">T</span>&#8202;/&#8202;<span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Tx</span>, with <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Tx</span> = <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Kcb·ETo</span>) — <b style="color:var(--ink);font-weight:650">not</b> the original <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">ETa/ETx</span> — so the penalty reflects water stress on the crop's transpiration, not on soil evaporation. Evaluated per crop window (never averaged across a rotation), and returned as null, not zero, when the crop has no attainable yield <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Ymax</span> defined.</p>
-          </div>
+    <div class="chapter">FAO-33 &#183; Water-limited yield (Doorenbos &amp; Kassam, 1979)</div>
+    <div class="eqs">
+      <div class="eq">
+        <div class="tag">FAO-33</div>
+        <div class="body">
+          <div class="name">Yield penalty <span style="color:var(--neon);font-size:.8em;font-weight:600">&#8212; on transpiration, not ET</span></div>
+          <div class="formula">1 <span class="op">&#8722;</span> Y/Y<sub>max</sub> <span class="op">=</span> K<sub>y</sub> ( 1 <span class="op">&#8722;</span> <span class="hl">T / T<sub>x</sub></span> ) , &nbsp; T<sub>x</sub> <span class="op">=</span> K<sub>cb</sub>&#183;ETo</div>
+          <p class="note">The water&#8211;yield production function. This engine applies it to the ratio of actual to potential <b>transpiration</b> (<var>T</var>&#8202;/&#8202;<var>Tx</var>, with <var>Tx</var> = <var>Kcb&#183;ETo</var>) &#8212; <b>not</b> the original <var>ETa/ETx</var> &#8212; so the penalty reflects water stress on the crop's transpiration, not on soil evaporation. Evaluated per crop window (never averaged across a rotation), and returned as null, not zero, when the crop has no attainable yield <var>Ymax</var> defined.</p>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<section style="padding:60px 0;border-top:1px solid var(--border)">
-  <div style="max-width:820px;margin:0 auto;padding:0 24px">
-    <h2 style="font-weight:700;font-size:1.6rem;letter-spacing:-.015em;margin:0 0 8px;text-wrap:balance;color:var(--ink)">The one thing beyond the manual</h2>
-    <p style="color:var(--muted);margin:0 0 20px;max-width:64ch;line-height:1.6">FAO-56 does not define the water content of the soil below the root zone — implementations usually assume it sits at field capacity. DualKc Studio tracks it.</p>
-    <p style="max-width:66ch;color:var(--ink-2);line-height:1.65">The subsoil (<span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Zr</span>→<span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Z_profile</span>) carries its actual water as a third store, <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Ss</span>. As roots deepen, the newly reached slice hands its real water to the root zone — so a crop can <b style="color:var(--ink);font-weight:650">find water banked during a previous fallow</b> instead of always meeting field capacity. Water percolating past the roots enters <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Ss</span>; whatever it cannot hold at field capacity leaves the profile as deep percolation. Everything else is strictly the manual.</p>
-    <div style="background:var(--neon-wash);border:1px solid var(--border);border-left:2px solid var(--neon);border-radius:0 6px 6px 0;padding:18px 20px;margin:24px 0">
-      <p style="margin:0;color:var(--ink-2);line-height:1.65;max-width:none"><b style="color:var(--ink);font-weight:650">A practical minimum root depth.</b> The root zone is never allowed to collapse to the evaporation layer: it is held at <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Ze</span>&nbsp;+&nbsp;0.2&nbsp;m at planting and retained through fallow. A seedling responds over a real layer, not an infinitesimal one; this also keeps <span style="font-family:var(--mono);font-style:normal;color:var(--neon-bright);background:var(--neon-wash);padding:.02em .34em;border-radius:3px;font-size:.9em">Ks</span> well-posed and gives the fallow a thin store to carry moisture into the next crop. This mirrors the minimum effective rooting depth used by models such as AquaCrop.</p>
+<section>
+  <div class="wrap">
+    <h2>The one thing beyond the manual</h2>
+    <p class="sub">FAO-56 does not define the water content of the soil below the root zone &#8212; implementations usually assume it sits at field capacity. DualKc Studio tracks it.</p>
+    <p>The subsoil (<var>Zr</var>&nbsp;&#8594;&nbsp;<var>Z_profile</var>) carries its actual water as a third store, <var>Ss</var>. As roots deepen, the newly reached slice hands its real water to the root zone &#8212; so a crop can <b>find water banked during a previous fallow</b> instead of always meeting field capacity. Water percolating past the roots enters <var>Ss</var>; whatever it cannot hold at field capacity leaves the profile as deep percolation. Everything else is strictly the manual.</p>
+    <div class="callout">
+      <p><b>A practical minimum root depth.</b> The root zone is never allowed to collapse to the evaporation layer: it is held at <var>Ze</var>&nbsp;+&nbsp;0.2&nbsp;m at planting and retained through fallow. A seedling responds over a real layer, not an infinitesimal one; this also keeps <var>Ks</var> well-posed and gives the fallow a thin store to carry moisture into the next crop. This mirrors the minimum effective rooting depth used by models such as AquaCrop.</p>
     </div>
   </div>
 </section>
 
-<footer style="padding:44px 0 72px;color:var(--muted);font-size:.9rem;border-top:1px solid var(--border)">
-  <div style="max-width:820px;margin:0 auto;padding:0 24px">
-    <div style="line-height:1.6">DualKc Studio · Soil Water Processes Lab, Department of Agronomy, Kansas State University.</div>
-    <div style="font-family:var(--mono);font-size:.82rem;margin-top:10px;color:var(--muted);line-height:1.6">Allen, R.G., Pereira, L.S., Raes, D., Smith, M. (1998). <i>Crop evapotranspiration — Guidelines for computing crop water requirements.</i> FAO Irrigation and Drainage Paper 56.</div>
+<section>
+  <div class="wrap">
+    <h2>Optional refinements</h2>
+    <p class="sub">Strict FAO-56 is the default. Each option below can be switched on where the data or the setting call for it; every one is off by default, so an untouched run is the manual.</p>
+    <div class="refs">
+      <div class="ref">
+        <div class="ref-name">Canopy cover from a rescaled K<sub>cb</sub></div>
+        <p>The manual derives fraction cover from Eq. 76's height exponent; the alternative maps K<sub>cb</sub> straight onto 0&#8211;1 (exponent 1). Six seasons of maize fit a straight line, f<sub>c</sub> = 1.10&#183;K<sub>cb</sub> + 0.17 (R&#178; = 0.91) &#8212; a better shape than the convex curve at full canopy height. <span class="cite">Trout &amp; DeJonge (2018), J. Irrig. Drain. Eng. 144(6).</span></p>
+      </div>
+      <div class="ref">
+        <div class="ref-name">K<sub>cb</sub> ramped from zero at planting</div>
+        <p>Rather than holding K<sub>cb</sub> flat at K<sub>cb,ini</sub> through the initial stage, ramp it linearly from zero at planting &#8212; closer to the true onset of transpiration as the canopy establishes.</p>
+      </div>
+      <div class="ref">
+        <div class="ref-name">Climate adjustment of tabulated K<sub>cb</sub> <span class="cite">(Eq. 70)</span></div>
+        <p>Correct Table 17's K<sub>cb,mid</sub> and K<sub>cb,end</sub> &#8212; tabulated for a standard climate (u&#8322; = 2 m s&#8315;&#185;, RH<sub>min</sub> = 45%) &#8212; to the site's own wind and humidity. Applied, per the manual, to tabulated values above 0.45.</p>
+      </div>
+      <div class="ref">
+        <div class="ref-name">Transpiration from the evaporating layer, T<sub>ew</sub> <span class="cite">(Eq. 77)</span></div>
+        <p>The manual names this term and then sets it to zero except for shallow-rooted crops (maximum depth &lt; 0.5&#8211;0.6 m). Enabling it moves a Z<sub>e</sub>/Z<sub>r</sub> share of transpiration into the surface book, drying it faster and so suppressing evaporation.</p>
+      </div>
+      <div class="ref">
+        <div class="ref-name">Deep diffusive / vapour loss below Z<sub>e</sub></div>
+        <p>Not in the manual: once the surface layer is exhausted FAO-56 has no mechanism left to dry the profile, yet a rainless multi-month fallow keeps drying as vapour rises from depth. This adds that flux as a lumped coefficient (0.01), fitted for southern Great Plains summer fallow &#8212; re-fit it against your own data before trusting it elsewhere. <span class="cite">Lollato et al. (2016), Agron. J. 108:745&#8211;757.</span></p>
+      </div>
+    </div>
+    <p class="sub" style="margin:22px 0 0">Two departures are always on, so that a weather file alone is enough to run: <b>SCS Curve Number</b> runoff &#8212; FAO-56 leaves runoff to the caller &#8212; and <b>canopy height inferred from K<sub>cb</sub></b> when a measured height isn't supplied.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>DualKc Studio &#183; Soil Water Processes Lab, Department of Agronomy, Kansas State University.</div>
+    <div class="foot-ref">Allen, R.G., Pereira, L.S., Raes, D., Smith, M. (1998). <i>Crop evapotranspiration &#8212; Guidelines for computing crop water requirements.</i> FAO Irrigation and Drainage Paper 56.</div>
   </div>
 </footer>
 
-</div>
-</x-dc>
-</body>
-</html>
