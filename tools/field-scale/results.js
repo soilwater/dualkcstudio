@@ -90,8 +90,12 @@ function ensureJsZip() { return (jszipPromise ||= import(new URL('../../vendor/j
 /* Compact number format shared by the map legend and the GIF colorbar. */
 const fmtNum = (x) => (Math.abs(x) >= 100 ? x.toFixed(0) : Math.abs(x) >= 1 ? x.toFixed(1) : x.toFixed(2));
 
-/* GIF frame chrome (dark, to match the app) and target on-screen data size. */
-const GIF_BG = '#12151b', GIF_INK = '#e8ebf0', GIF_MUTED = '#9aa2ae', GIF_MAXDIM = 480;
+/* GIF frame chrome (dark, to match the app) and target data size (longest side,
+   px). GIF_S scales the chrome — padding, fonts, legend — proportionally to the
+   original 480 px design so a larger GIF stays balanced. Nearest-neighbor
+   upscaling is kept, so a bigger GIF is physically larger, not finer. */
+const GIF_BG = '#12151b', GIF_INK = '#e8ebf0', GIF_MUTED = '#9aa2ae', GIF_MAXDIM = 1000;
+const GIF_S = GIF_MAXDIM / 480;
 
 export function createResults() {
   injectStyle();
@@ -333,9 +337,10 @@ export function createResults() {
   function drawGifLegend(g, varName, x, y, w, h) {
     const cmap = CMAPS[VARS[varName].cmap], [lo, hi] = rangeFor(varName);
     for (let i = 0; i < w; i++) { const [r, gg, b] = lerp(cmap, i / (w - 1)); g.fillStyle = `rgb(${r},${gg},${b})`; g.fillRect(x + i, y, 1, h); }
-    g.fillStyle = GIF_MUTED; g.font = '11px Inter, system-ui, sans-serif'; g.textBaseline = 'top';
-    g.textAlign = 'left'; g.fillText(`${fmtNum(lo)} ${VARS[varName].unit}`, x, y + h + 3);
-    g.textAlign = 'right'; g.fillText(fmtNum(hi), x + w, y + h + 3);
+    g.fillStyle = GIF_MUTED; g.font = `${Math.round(11 * GIF_S)}px Inter, system-ui, sans-serif`; g.textBaseline = 'top';
+    const yLab = y + h + Math.round(3 * GIF_S);
+    g.textAlign = 'left'; g.fillText(`${fmtNum(lo)} ${VARS[varName].unit}`, x, yLab);
+    g.textAlign = 'right'; g.fillText(fmtNum(hi), x + w, yLab);
     g.textAlign = 'left';
   }
 
@@ -351,7 +356,7 @@ export function createResults() {
       const { cols, rows, T } = R;
       const scale = GIF_MAXDIM / Math.max(cols, rows);
       const dataW = Math.max(1, Math.round(cols * scale)), dataH = Math.max(1, Math.round(rows * scale));
-      const padX = 10, topH = 24, botH = 34;
+      const padX = Math.round(10 * GIF_S), topH = Math.round(24 * GIF_S), botH = Math.round(34 * GIF_S);
       const W = padX + dataW + padX, H = topH + dataH + botH;
 
       const fc = document.createElement('canvas'); fc.width = W; fc.height = H;
@@ -368,11 +373,11 @@ export function createResults() {
       for (let d = 0; d < T; d++) {
         paintGrid(curVar, d);                              /* module canvas ← day d */
         g.fillStyle = GIF_BG; g.fillRect(0, 0, W, H);
-        g.fillStyle = GIF_INK; g.font = '600 13px Inter, system-ui, sans-serif'; g.textBaseline = 'middle';
+        g.fillStyle = GIF_INK; g.font = `600 ${Math.round(13 * GIF_S)}px Inter, system-ui, sans-serif`; g.textBaseline = 'middle';
         g.textAlign = 'left'; g.fillText(VARS[curVar].label, padX, topH / 2);
         g.textAlign = 'right'; g.fillText(R.dates[d], W - padX, topH / 2); g.textAlign = 'left';
         g.drawImage(canvas, padX, topH, dataW, dataH);     /* nearest upscale */
-        drawGifLegend(g, curVar, padX, topH + dataH + 8, W - 2 * padX, 9);
+        drawGifLegend(g, curVar, padX, topH + dataH + Math.round(8 * GIF_S), W - 2 * padX, Math.round(9 * GIF_S));
         const { data } = g.getImageData(0, 0, W, H);
         enc.writeFrame(applyPalette(data, palette, 'rgb565'), W, H, { palette, delay, repeat: 0 });
         if (d % 8 === 0) { setBusy(gifBtn, `GIF ${d + 1}/${T}…`); await new Promise((r) => setTimeout(r)); }
