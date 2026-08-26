@@ -58,10 +58,11 @@ const VARS = {
   FC: { label: 'Field capacity', unit: 'm³/m³', kind: 'soil', cmap: 'BrBG', fixed: [0, 0.45] },
   WP: { label: 'Wilting point', unit: 'm³/m³', kind: 'soil', cmap: 'BrBG', fixed: [0, 0.45] },
   AWC: { label: 'Available water capacity', unit: 'm³/m³', kind: 'soil', cmap: 'Blues' },
-  ETc_sum: { label: 'Season ETc total', unit: 'mm', kind: 'summary', cmap: 'YlGnBu' },
-  T_sum: { label: 'Season transpiration', unit: 'mm', kind: 'summary', cmap: 'YlGnBu' },
-  E_sum: { label: 'Season evaporation', unit: 'mm', kind: 'summary', cmap: 'YlOrRd' },
-  deepPerc_sum: { label: 'Season deep percolation', unit: 'mm', kind: 'summary', cmap: 'YlGnBu' },
+  ETc_sum: { label: 'Cumulative ETc', unit: 'mm', kind: 'summary', cmap: 'YlGnBu' },
+  T_sum: { label: 'Cumulative transpiration', unit: 'mm', kind: 'summary', cmap: 'YlGnBu' },
+  E_sum: { label: 'Cumulative evaporation', unit: 'mm', kind: 'summary', cmap: 'YlOrRd' },
+  deepPerc_sum: { label: 'Cumulative deep percolation', unit: 'mm', kind: 'summary', cmap: 'YlGnBu' },
+  precip_sum: { label: 'Cumulative precipitation', unit: 'mm', kind: 'summary', cmap: 'Blues' },
   stressDays: { label: 'Water-stress days', unit: 'd', kind: 'summary', cmap: 'YlOrRd' },
   finalPaw: { label: 'Final available water', unit: 'mm', kind: 'summary', cmap: 'YlGnBu' },
 };
@@ -78,6 +79,20 @@ function injectStyle() {
   document.head.appendChild(s);
 }
 
+/* Lazy vendor loaders (dynamic import, cached). gifenc is ESM; jszip is a UMD
+   bundle whose module body assigns window.JSZip when it runs. Nothing is
+   fetched until the user actually exports. */
+let gifencPromise = null;
+function ensureGifenc() { return (gifencPromise ||= import(new URL('../../vendor/gifenc.esm.js', import.meta.url).href)); }
+let jszipPromise = null;
+function ensureJsZip() { return (jszipPromise ||= import(new URL('../../vendor/jszip.min.js', import.meta.url).href).then(() => window.JSZip)); }
+
+/* Compact number format shared by the map legend and the GIF colorbar. */
+const fmtNum = (x) => (Math.abs(x) >= 100 ? x.toFixed(0) : Math.abs(x) >= 1 ? x.toFixed(1) : x.toFixed(2));
+
+/* GIF frame chrome (dark, to match the app) and target on-screen data size. */
+const GIF_BG = '#12151b', GIF_INK = '#e8ebf0', GIF_MUTED = '#9aa2ae', GIF_MAXDIM = 480;
+
 export function createResults() {
   injectStyle();
   let R = null, curVar = 'Kcb', curDay = 0, opacity = 0.8, selPixel = null;
@@ -92,14 +107,15 @@ export function createResults() {
   const varSel = selectInput({
     options: Object.entries(VARS).map(([v, m]) => ({ value: v, label: m.label })),
     value: 'Kcb',
-    onChange: (v) => { curVar = v; daySlider.disabled = VARS[v].kind !== 'daily'; refresh(); },
+    onChange: (v) => { curVar = v; daySlider.disabled = gifBtn.disabled = VARS[v].kind !== 'daily'; refresh(); },
   });
   const daySlider = el('input', { type: 'range', min: '0', max: '0', value: '0', class: 'dayslider', style: { flex: '1' },
     oninput: (e) => { curDay = +e.target.value; dayLabel.textContent = dayText(); drawOverlay(); } });
   const dayLabel = el('span', { class: 'hint', style: { fontVariantNumeric: 'tabular-nums', minWidth: '11rem' } }, '—');
   const opSlider = el('input', { type: 'range', min: '20', max: '100', value: '80', style: { width: '7rem' },
     oninput: (e) => { opacity = +e.target.value / 100; if (overlay) overlay.setOpacity(opacity); } });
-  const tiffBtn = btn('⤓ GeoTIFF', { small: true, onClick: exportGeoTiff });
+  const gifBtn = btn('⤓ GIF', { small: true, onClick: exportGif, title: 'Animated GIF of the current variable across all days' });
+  const tiffBtn = btn('⤓ GeoTIFF', { small: true, onClick: exportTiffs, title: 'GeoTIFF(s) for the current variable — a zip of one file per day for daily variables' });
 
   const mapEl = el('div', { style: { height: '460px', width: '100%', borderRadius: 'var(--radius)', overflow: 'hidden', background: 'var(--panel-2)', position: 'relative', zIndex: '0', isolation: 'isolate' } });
   const pixHead = el('div', { class: 'chart-card__title' }, 'Click a pixel');
@@ -115,7 +131,7 @@ export function createResults() {
       el('label', { class: 'row', style: { gap: '0.5rem' } }, el('span', { class: 'hint' }, 'Variable'), varSel.el),
       el('label', { class: 'row', style: { gap: '0.5rem', flex: '1', minWidth: '16rem' } }, el('span', { class: 'hint' }, 'Day'), daySlider, dayLabel),
       el('label', { class: 'row', style: { gap: '0.5rem' } }, el('span', { class: 'hint' }, 'Overlay'), opSlider),
-      tiffBtn,
+      gifBtn, tiffBtn,
     ),
     el('div', { class: 'card chart-card chart-card--wide' },
       el('div', { class: 'chart-card__head' }, el('div', { class: 'chart-card__title' }, 'Map'), el('div', { class: 'chart-card__sub' }, 'satellite basemap · click a pixel')),
@@ -159,11 +175,13 @@ export function createResults() {
     return [[r.north - (row + 1) * dLat, r.west + col * dLon], [r.north - row * dLat, r.west + (col + 1) * dLon]];
   }
 
-  function drawOverlay() {
-    if (!R || !map || !window.L) return;
-    const { rows, cols } = R, m = VARS[curVar], cmap = CMAPS[m.cmap];
-    const [lo, hi] = rangeFor(curVar), span = (hi - lo) || 1;
-    const src = slice(curVar, curDay);
+  /* Colorize one (variable, day) frame onto the module canvas at native grid
+     size (cols×rows). Masked pixels are transparent. Shared by the live map
+     overlay and the GIF exporter. */
+  function paintGrid(varName, day) {
+    const { rows, cols } = R, m = VARS[varName], cmap = CMAPS[m.cmap];
+    const [lo, hi] = rangeFor(varName), span = (hi - lo) || 1;
+    const src = slice(varName, day);
     canvas.width = cols; canvas.height = rows;
     const img = ctx.createImageData(cols, rows);
     for (let i = 0; i < rows * cols; i++) {
@@ -173,6 +191,11 @@ export function createResults() {
       img.data[i * 4] = rr; img.data[i * 4 + 1] = gg; img.data[i * 4 + 2] = bb; img.data[i * 4 + 3] = 255;
     }
     ctx.putImageData(img, 0, 0);
+  }
+
+  function drawOverlay() {
+    if (!R || !map || !window.L) return;
+    paintGrid(curVar, curDay);
     const url = canvas.toDataURL();
     if (overlay) overlay.setUrl(url);
     else overlay = window.L.imageOverlay(url, bounds(), { opacity, className: 'gridoverlay', interactive: false }).addTo(map);
@@ -272,19 +295,92 @@ export function createResults() {
     linkZoom(pixDivs);
   }
 
-  /* Export the active map layer (current variable + day) as a georeferenced
-     Float32 GeoTIFF (EPSG:4326, -9999 nodata) built client-side from the grid. */
-  function exportGeoTiff() {
-    if (!R || !R.rect) return;
+  /* Buttons double as a status line during a (possibly multi-second) export. */
+  function setBusy(button, text) { button.disabled = true; button.textContent = text; }
+  function clearBusy(button, text) { button.disabled = false; button.textContent = text; }
+
+  function tiffOpts() {
     const { rows, cols, rect } = R;
-    const ab = buildGeoTiff(slice(curVar, curDay), {
-      width: cols, height: rows,
-      west: rect.west, north: rect.north,
-      pixelW: (rect.east - rect.west) / cols, pixelH: (rect.north - rect.south) / rows,
-      nodata: -9999,
-    });
-    const tag = VARS[curVar].kind === 'daily' ? `_${R.dates[curDay]}` : '';
-    downloadBlob(`${curVar}${tag}.tif`, ab, 'image/tiff');
+    return { width: cols, height: rows, west: rect.west, north: rect.north,
+      pixelW: (rect.east - rect.west) / cols, pixelH: (rect.north - rect.south) / rows, nodata: -9999 };
+  }
+
+  /* Export the active variable as georeferenced Float32 GeoTIFF(s) (EPSG:4326,
+     -9999 nodata), built client-side. A daily variable becomes a ZIP with one
+     file per day; a season total / soil layer is a single file. */
+  async function exportTiffs() {
+    if (!R || !R.rect) return;
+    const opts = tiffOpts();
+    if (VARS[curVar].kind !== 'daily') {
+      downloadBlob(`${curVar}.tif`, buildGeoTiff(slice(curVar, 0), opts), 'image/tiff');
+      return;
+    }
+    setBusy(tiffBtn, 'Zipping…');
+    try {
+      const JSZip = await ensureJsZip();
+      const zip = new JSZip();
+      for (let d = 0; d < R.T; d++) {
+        zip.file(`${curVar}_${R.dates[d]}.tif`, buildGeoTiff(slice(curVar, d), opts));
+        if (d % 12 === 0) { setBusy(tiffBtn, `Zipping ${d + 1}/${R.T}…`); await new Promise((r) => setTimeout(r)); }
+      }
+      const blob = await zip.generateAsync({ type: 'blob' });
+      downloadBlob(`${curVar}_${R.dates[0]}_to_${R.dates[R.T - 1]}.zip`, blob, 'application/zip');
+    } catch (e) { console.error(e); alert(`GeoTIFF export failed: ${e.message}`); }
+    finally { clearBusy(tiffBtn, '⤓ GeoTIFF'); }
+  }
+
+  /* Horizontal colorbar with lo/hi labels, drawn into a frame's bottom strip. */
+  function drawGifLegend(g, varName, x, y, w, h) {
+    const cmap = CMAPS[VARS[varName].cmap], [lo, hi] = rangeFor(varName);
+    for (let i = 0; i < w; i++) { const [r, gg, b] = lerp(cmap, i / (w - 1)); g.fillStyle = `rgb(${r},${gg},${b})`; g.fillRect(x + i, y, 1, h); }
+    g.fillStyle = GIF_MUTED; g.font = '11px Inter, system-ui, sans-serif'; g.textBaseline = 'top';
+    g.textAlign = 'left'; g.fillText(`${fmtNum(lo)} ${VARS[varName].unit}`, x, y + h + 3);
+    g.textAlign = 'right'; g.fillText(fmtNum(hi), x + w, y + h + 3);
+    g.textAlign = 'left';
+  }
+
+  /* Export the active DAILY variable as a looping animated GIF, one frame per
+     day, with the variable name, date and a colorbar baked into each frame.
+     The palette is built directly from the colormap (+ chrome colors), so every
+     frame shares it — no per-frame quantization, no flicker. */
+  async function exportGif() {
+    if (!R || VARS[curVar].kind !== 'daily') return;
+    setBusy(gifBtn, 'GIF…');
+    try {
+      const { GIFEncoder, applyPalette } = await ensureGifenc();
+      const { cols, rows, T } = R;
+      const scale = GIF_MAXDIM / Math.max(cols, rows);
+      const dataW = Math.max(1, Math.round(cols * scale)), dataH = Math.max(1, Math.round(rows * scale));
+      const padX = 10, topH = 24, botH = 34;
+      const W = padX + dataW + padX, H = topH + dataH + botH;
+
+      const fc = document.createElement('canvas'); fc.width = W; fc.height = H;
+      const g = fc.getContext('2d'); g.imageSmoothingEnabled = false;
+
+      /* Fixed palette: 240 colormap steps + chrome. Covers every color any frame
+         can contain, so applyPalette maps each frame with no drift. */
+      const cmap = CMAPS[VARS[curVar].cmap], palette = [];
+      for (let k = 0; k < 240; k++) palette.push(lerp(cmap, k / 239));
+      for (const c of [[18, 21, 27], [26, 31, 38], [232, 235, 240], [154, 162, 174], [90, 98, 110], [0, 0, 0]]) palette.push(c);
+
+      const enc = GIFEncoder();
+      const delay = Math.max(60, Math.round(9000 / T));   /* whole loop ≈ 9 s */
+      for (let d = 0; d < T; d++) {
+        paintGrid(curVar, d);                              /* module canvas ← day d */
+        g.fillStyle = GIF_BG; g.fillRect(0, 0, W, H);
+        g.fillStyle = GIF_INK; g.font = '600 13px Inter, system-ui, sans-serif'; g.textBaseline = 'middle';
+        g.textAlign = 'left'; g.fillText(VARS[curVar].label, padX, topH / 2);
+        g.textAlign = 'right'; g.fillText(R.dates[d], W - padX, topH / 2); g.textAlign = 'left';
+        g.drawImage(canvas, padX, topH, dataW, dataH);     /* nearest upscale */
+        drawGifLegend(g, curVar, padX, topH + dataH + 8, W - 2 * padX, 9);
+        const { data } = g.getImageData(0, 0, W, H);
+        enc.writeFrame(applyPalette(data, palette, 'rgb565'), W, H, { palette, delay, repeat: 0 });
+        if (d % 8 === 0) { setBusy(gifBtn, `GIF ${d + 1}/${T}…`); await new Promise((r) => setTimeout(r)); }
+      }
+      enc.finish();
+      downloadBlob(`${curVar}_${R.dates[0]}_to_${R.dates[T - 1]}.gif`, new Blob([enc.bytes()], { type: 'image/gif' }), 'image/gif');
+    } catch (e) { console.error(e); alert(`GIF export failed: ${e.message}`); }
+    finally { clearBusy(gifBtn, '⤓ GIF'); drawOverlay(); }
   }
 
   function ensureMap() {
@@ -330,12 +426,17 @@ export function createResults() {
     if (!avail.includes(curVar)) curVar = avail[0];
     varSel.setOptions(avail.map((v) => ({ value: v, label: VARS[v].label })), curVar);
     daySlider.max = String(Math.max(0, R.T - 1)); daySlider.value = '0';
-    daySlider.disabled = VARS[curVar].kind !== 'daily';
+    daySlider.disabled = gifBtn.disabled = VARS[curVar].kind !== 'daily';
     if (window.Plotly) pixDivs.forEach((d) => window.Plotly.purge(d));
     pixHead.textContent = 'Click a pixel';
     ensureMap();
     fitted = false;
     if (marker) { map.removeLayer(marker); marker = null; }
+    /* Drop the previous overlay so it is recreated at THIS run's bounds. An
+       L.imageOverlay keeps its original bounds through setUrl(), so reusing it
+       would paint the new grid over the old AOI's rectangle (e.g. a county
+       stretched over the previously-run state). */
+    if (overlay) { map.removeLayer(overlay); overlay = null; }
     drawFieldBoundary();
     refresh();
     fitToBounds();

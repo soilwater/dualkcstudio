@@ -12,10 +12,12 @@
  */
 
 import { el } from '../../ui/dom.js';
-import { group, ctrl, numInput, dateInput, textInput, selectInput, btn, readout, metricsBar, callout } from '../../ui/components.js';
+import { group, ctrl, numInput, dateInput, textInput, selectInput, segmented, btn, readout, metricsBar, callout } from '../../ui/components.js';
+import { createBoundaryPicker } from './boundaries.js';
 import { createWorkbench } from '../../ui/workbench.js';
 import { GEE_OAUTH_CLIENT_ID } from '../../app/config.js';
 import { saveGeeSession, loadGeeSession, clearGeeSession, savedProject, saveProject } from '../../app/geeSession.js';
+import { geeProjectHelp } from '../../app/geeHelp.js';
 import { getVegSource, FIELD_SOURCES, indexOptions } from './veg_sources.js';
 import { getSoilSource } from './soil_sources.js';
 import { baseLayers } from './basemaps.js';
@@ -27,7 +29,18 @@ import { createResults } from './results.js';
 import { DOCS } from './docs.js';
 
 const EE_SCOPE = 'https://www.googleapis.com/auth/earthengine https://www.googleapis.com/auth/cloud-platform.read-only';
-const DEFAULT = { lat: 39.05, lon: -96.55, start: '2021-05-01', end: '2021-09-15' };
+
+/* Default period: Jan 1 through ~a week ago. GRIDMET lags the present by a few
+   days, so ending a week back keeps the default range inside available data.
+   Start uses the END's year, so the first days of January still give a valid
+   (previous-year) range instead of start > end. */
+const iso = (d) => d.toISOString().slice(0, 10);
+const DEFAULT_END = new Date(Date.now() - 7 * 86400000);
+const DEFAULT = { lat: 39.05, lon: -96.55, start: `${DEFAULT_END.getFullYear()}-01-01`, end: iso(DEFAULT_END) };
+/* Soft heads-up threshold only — NOT a cap. Above this many grid pixels we warn
+   that a run may be slow or hit the user's Earth Engine quota; the run is never
+   blocked (EE enforces its own limits and returns the real error). */
+const HINT_PIXELS = 40000;
 
 let libsPromise = null;
 function ensureLibs() {
@@ -58,6 +71,32 @@ function geojsonOuterRing(gj) {
   return ring ? ring.map(([lng, lat]) => [lat, lng]) : null;
 }
 
+/**
+ * A Leaflet polygon/multipolygon's outer rings, each as [lng,lat] pairs. Works
+ * for a simple drawn/uploaded polygon (one ring) and for a selected boundary
+ * that is a MultiPolygon (several). Holes, if any, are treated as extra rings —
+ * harmless here since the boundary layers carry only outer rings.
+ */
+function shapeOuterRings(fieldShape) {
+  const out = [];
+  const walk = (a) => {
+    if (!a || !a.length) return;
+    if (Array.isArray(a[0])) { a.forEach(walk); return; }   /* deeper: array of rings/polys */
+    out.push(a.map((ll) => [ll.lng, ll.lat]));              /* leaf: array of LatLng */
+  };
+  walk(fieldShape.getLatLngs());
+  return out;
+}
+
+/** Set a daily stack [t*nPixels+p] to NaN wherever validMask[p] is 0, so weather
+ *  layers (ETo/precip) share the clipped footprint of the modeled variables. */
+function maskDailyToValid(stack, validMask, T, nPixels) {
+  for (let p = 0; p < nPixels; p++) {
+    if (!validMask[p]) for (let t = 0; t < T; t++) stack[t * nPixels + p] = NaN;
+  }
+  return stack;
+}
+
 /** Ray-casting point-in-polygon on [lng,lat] pairs (planar; fine at field scale). */
 function pointInRing(x, y, ring) {
   let inside = false;
@@ -80,7 +119,7 @@ export function createSpatialTool(config) {
 
   function create() {
   const wb = createWorkbench({ inputsLabel: 'Map', outputsLabel: 'Results' });
-  const state = { authed: false, tokenClient: null, map: null, drawn: null, fieldShape: null, center: { lat: DEFAULT.lat, lon: DEFAULT.lon }, vegSource: config.sources[0], result: null };
+  const state = { authed: false, tokenClient: null, map: null, drawn: null, fieldShape: null, center: { lat: DEFAULT.lat, lon: DEFAULT.lon }, vegSource: config.sources[0], result: null, scaleM: config.sources[0].scaleM };
 
   /* ── Sidebar: Earth Engine ──────────────────────────────────────────── */
   const appConfigured = !!GEE_OAUTH_CLIENT_ID;
@@ -89,7 +128,7 @@ export function createSpatialTool(config) {
   const signInBtn = btn('Sign in with Google', { kind: 'neon', small: true, block: true, onClick: signIn });
   const authStatus = el('div', { class: 'hint', style: { marginTop: '0.3rem' } }, 'Not connected.');
   const gEE = group('Earth Engine', { open: true });
-  gEE.body.append(ctrl('Project ID', projectIn.el));
+  gEE.body.append(ctrl('GEE Project ID', projectIn.el), geeProjectHelp());
   if (!appConfigured) gEE.body.append(ctrl('OAuth Client ID', clientIn.el));
   gEE.body.append(
     el('div', { style: { marginTop: '0.4rem' } }, signInBtn), authStatus,
@@ -106,6 +145,26 @@ export function createSpatialTool(config) {
   const datasetNote = el('div', { class: 'hint', style: { marginTop: '0.4rem', lineHeight: '1.4' } }, state.vegSource.note);
   const gData = group('Vegetation dataset', { open: true });
   gData.body.append(ctrl('Source', datasetSel.el), datasetNote);
+
+  /* ── Sidebar: region boundary ───────────────────────────────────────────
+     Load a county / state / ASD from assets/ as the AOI, instead of drawing.
+     Only offered when a tool opts in with config.boundaryLevels (Mesoscale) —
+     a county is a mesoscale object, too coarse for the 30 m Field Scale tool.
+     There is no area cap: the run uses the user's own Earth Engine project, so
+     EE enforces its own quotas and returns the real error if a region is too
+     large. Remove this block + boundaries.js to drop the feature; nothing else
+     depends on it. */
+  let gBoundary = null;
+  if (config.boundaryLevels && config.boundaryLevels.length) {
+    const boundaryPicker = createBoundaryPicker({
+      levels: config.boundaryLevels,
+      onPick: ({ rings, label }) => applyRegionShape(rings, label),
+    });
+    gBoundary = group('Region boundary', { open: false });
+    gBoundary.body.append(boundaryPicker.el);
+    /* Fetch the (large) boundary files only once the user opens this group. */
+    gBoundary.el.addEventListener('toggle', () => { if (gBoundary.el.open) boundaryPicker.load(); });
+  }
 
   /* ── Sidebar: period ────────────────────────────────────────────────── */
   const startIn = dateInput({ value: DEFAULT.start, onChange: syncSize });
@@ -149,7 +208,7 @@ export function createSpatialTool(config) {
     ctrl('Irrigation', irrigSel.el), autoRow,
   );
 
-  wb.sidebar.append(gEE.el, gData.el, gArea.el, gCrop.el, gMgmt.el);
+  wb.sidebar.append(...[gEE.el, gData.el, gBoundary && gBoundary.el, gArea.el, gCrop.el, gMgmt.el].filter(Boolean));
 
   const runBtn = btn('Run model', { kind: 'primary', block: true, onClick: run });
   runBtn.disabled = true;
@@ -160,11 +219,25 @@ export function createSpatialTool(config) {
   const mapEl = el('div', { style: { height: '460px', width: '100%', borderRadius: 'var(--radius)', overflow: 'hidden', background: 'var(--panel-2)', position: 'relative', zIndex: '0', isolation: 'isolate' } });
   const sizeMetrics = metricsBar([]);
   const sizeWarn = el('div', {});
-  const srcHint = el('div', { class: 'hint' }, `${state.vegSource.label} · ${state.vegSource.scaleM} m grid`);
+  const srcText = () => `${state.vegSource.label} · ${state.scaleM} m grid`;
+  const srcHint = el('div', { class: 'hint' }, srcText());
   const drawHint = el('div', { class: 'hint' }, 'Trace the boundary with the draw tools (top-left of the map), or upload a GeoJSON.');
   const gjInput = el('input', { type: 'file', accept: '.geojson,.json,application/geo+json', style: { display: 'none' }, onchange: onGeojson });
   const gjBtn = btn('Upload boundary (GeoJSON)', { small: true, onClick: () => gjInput.click() });
-  wb.inputs.append(el('div', { class: 'stack' }, srcHint,
+
+  /* Optional grid-resolution selector (Field Scale offers 30/250/1000 m; a
+     coarser grid trades detail for area so a whole county fits under the pixel
+     budget). Absent when config.resolutions is unset (Mesoscale stays at its
+     fixed native resolution). */
+  const resSeg = config.resolutions ? segmented({
+    options: config.resolutions.map((m) => ({ value: String(m), label: `${m} m` })),
+    value: String(state.scaleM),
+    onChange: (v) => { state.scaleM = +v; srcHint.textContent = srcText(); syncSize(); },
+  }) : null;
+  const resRow = resSeg ? el('div', { class: 'row', style: { gap: '0.5rem', alignItems: 'center' } },
+    el('span', { class: 'hint' }, 'Grid resolution'), resSeg.el) : null;
+
+  wb.inputs.append(el('div', { class: 'stack' }, srcHint, resRow,
     el('div', { class: 'row', style: { gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' } }, drawHint, gjBtn, gjInput),
     mapEl, sizeMetrics.el, sizeWarn));
 
@@ -221,7 +294,7 @@ export function createSpatialTool(config) {
     setAuth('', 'Reconnecting to Earth Engine…');
     ee.data.setAuthToken(clientId, 'Bearer', s.token, s.expiresInSec, null, () => {
       ee.initialize(null, null,
-        () => setAuth('ok', `Connected · project ${project} (restored)`),
+        () => { setAuth('ok', `Connected · project ${project} (restored)`); armExpiry(s.expiresInSec); },
         () => { clearGeeSession(); setAuth('', 'Session expired — sign in again.'); }, null, project);
     }, false);
   }
@@ -245,6 +318,24 @@ export function createSpatialTool(config) {
     syncSize();
   }
 
+  /* Load a selected boundary (county/state/ASD) as the field polygon — same
+     role as a drawn or uploaded one. `rings` are [lat,lng] outer rings; one →
+     a simple polygon, several → a Leaflet MultiPolygon (so getBounds spans all
+     parts). The sampled grid is still the bounding box; the polygon masks
+     output pixels (see clipSoilToShape). */
+  function applyRegionShape(rings, label) {
+    if (!state.map || !window.L) { sizeWarn.innerHTML = ''; sizeWarn.append(callout('warn', 'Open the map first, then pick a boundary.')); return; }
+    if (!rings || !rings.length) return;
+    const L = window.L;
+    const latlngs = rings.length === 1 ? rings[0] : rings.map((r) => [r]);
+    const poly = L.polygon(latlngs, { color: '#86dd52', weight: 2, fillOpacity: 0.06 });
+    state.drawn.clearLayers();
+    state.drawn.addLayer(poly);
+    state.fieldShape = poly;
+    state.map.fitBounds(poly.getBounds(), { padding: [20, 20] });
+    syncSize();
+  }
+
   /* The AOI bounding box = the drawn shape's bounds, or null before anything is
      drawn. The grid is sampled over this rectangle; a circle/polygon then clips
      it (see run()). */
@@ -260,7 +351,11 @@ export function createSpatialTool(config) {
     const src = getVegSource(id);
     state.vegSource = src;
     datasetNote.textContent = src.note;
-    srcHint.textContent = `${src.label} · ${src.scaleM} m grid`;
+    /* A new dataset resets the resolution to its native scale (and the selector,
+       if present, unless the native scale is one of the offered steps). */
+    state.scaleM = (config.resolutions && config.resolutions.includes(src.scaleM)) ? state.scaleM : src.scaleM;
+    if (resSeg && config.resolutions.includes(state.scaleM)) resSeg.set(String(state.scaleM));
+    srcHint.textContent = srcText();
     const opts = indexOptions(src);
     indexSel.setOptions(opts, opts[0].value);
     syncSize();
@@ -275,22 +370,49 @@ export function createSpatialTool(config) {
       runBtn.disabled = true;
       return;
     }
-    const chk = checkAoi(rect, { scaleM: state.vegSource.scaleM, maxHa: state.vegSource.maxHa });
+    const chk = checkAoi(rect, { scaleM: state.scaleM });
+    const big = chk.nPixels > HINT_PIXELS;
     sizeMetrics.update([
       { label: 'Grid', value: `${chk.cols}×${chk.rows}` },
-      { label: 'Pixels', value: chk.nPixels, accent: !chk.ok },
-      { label: 'Area', value: chk.ha, digits: 0, unit: 'ha', accent: !chk.ok },
-      { label: 'Max area', value: chk.maxHa, digits: 0, unit: 'ha' },
+      { label: 'Pixels', value: chk.nPixels, accent: big },
+      { label: 'Area', value: chk.ha, digits: 0, unit: 'ha' },
     ]);
+    /* No hard area cap — the user runs on their own Earth Engine project, so EE
+       enforces its own quotas and returns the real error if the area is too
+       large (surfaced in the run status). We only flag a large grid as a
+       heads-up that it may be slow or rejected. A coarser resolution shrinks
+       it when the tool offers one. */
     sizeWarn.innerHTML = '';
-    if (!chk.ok) sizeWarn.append(callout('warn', `Area ${chk.ha.toFixed(0)} ha is over the ${chk.maxHa.toLocaleString()} ha limit for ${state.vegSource.label}. Draw a smaller field.`));
-    runBtn.disabled = !state.authed || !chk.ok;
+    if (big) {
+      const canCoarsen = config.resolutions && state.scaleM !== Math.max(...config.resolutions);
+      sizeWarn.append(callout('warn',
+        `Large grid — ${chk.nPixels.toLocaleString()} pixels. This may take a while or exceed your Earth Engine limits; if it fails, EE’s message shows in the run status.${canCoarsen ? ' A coarser resolution reduces it.' : ''}`));
+    }
+    runBtn.disabled = !state.authed;
   }
 
   /* ── OAuth ──────────────────────────────────────────────────────────── */
+  /* Google access tokens live ~1 h with no refresh token. Flip the UI back to
+     signed-out shortly before expiry so the button never claims "Signed in"
+     over a dead token (a run would then fail with an auth error). */
+  let expiryTimer = null;
+  function clearExpiry() { if (expiryTimer) { clearTimeout(expiryTimer); expiryTimer = null; } }
+  function armExpiry(remainingSec) {
+    clearExpiry();
+    const ms = Math.max(0, (remainingSec || 3600) - 60) * 1000;
+    expiryTimer = setTimeout(() => { clearGeeSession(); setAuth('', 'Session expired — sign in again.'); }, ms);
+  }
+
   function setAuth(kind, msg) {
     authStatus.textContent = msg; authStatus.className = `hint${kind === 'ok' ? ' is-ok' : ''}`;
-    state.authed = kind === 'ok'; syncSize();
+    state.authed = kind === 'ok';
+    if (!state.authed) clearExpiry();
+    /* Reflect the state on the button so a connected user isn't unsure whether
+       to click again; it stays clickable so they can re-auth or switch project.
+       Drop the neon call-to-action look once connected. */
+    signInBtn.textContent = state.authed ? '✓ Signed in' : 'Sign in with Google';
+    signInBtn.classList.toggle('btn--neon', !state.authed);
+    syncSize();
   }
   async function signIn() {
     const clientId = GEE_OAUTH_CLIENT_ID || clientIn.get().trim();
@@ -310,6 +432,7 @@ export function createSpatialTool(config) {
             ee.initialize(null, null, () => {
               saveGeeSession(resp.access_token, resp.expires_in, project);
               setAuth('ok', `Connected · project ${project}`);
+              armExpiry(resp.expires_in);
             }, (err) => setAuth('err', `EE init failed: ${err}`), null, project);
           }, false);
         },
@@ -327,14 +450,14 @@ export function createSpatialTool(config) {
     const isCircle = fieldShape instanceof L.Circle;
     const center = isCircle ? fieldShape.getLatLng() : null;
     const radius = isCircle ? fieldShape.getRadius() : 0;
-    const ring = isCircle ? null : fieldShape.getLatLngs()[0].map((ll) => [ll.lng, ll.lat]);
+    const rings = isCircle ? null : shapeOuterRings(fieldShape);   /* one (drawn) or many (multipolygon region) */
     const dLon = (rect.east - rect.west) / targetCols;
     const dLat = (rect.north - rect.south) / targetRows;
     for (let r = 0; r < dataRows; r++) {
       for (let c = 0; c < dataCols; c++) {
         const lon = rect.west + (c + 0.5) * dLon;
         const lat = rect.north - (r + 0.5) * dLat;
-        const inside = isCircle ? state.map.distance([lat, lon], center) <= radius : pointInRing(lon, lat, ring);
+        const inside = isCircle ? state.map.distance([lat, lon], center) <= radius : rings.some((ring) => pointInRing(lon, lat, ring));
         if (!inside) { const p = r * dataCols + c; soil.rootzone_fc[p] = NaN; soil.rootzone_wp[p] = NaN; soil.surface_fc[p] = NaN; soil.surface_wp[p] = NaN; }
       }
     }
@@ -353,7 +476,7 @@ export function createSpatialTool(config) {
     const ee = window.ee;
     try {
       const zrMax = zrIn.get();
-      const gsz = gridShape(rect, state.vegSource.scaleM);
+      const gsz = gridShape(rect, state.scaleM);
       const data = await collectGrid(ee, {
         rect, cols: gsz.cols, rows: gsz.rows,
         start, end, index: indexSel.get(),
@@ -392,16 +515,24 @@ export function createSpatialTool(config) {
       result.rect = rect;
       result.soil = data.soil;
       result.weather = data.weather;
-      /* Per-pixel weather (mesoscale) → ETo/precip become map layers too. */
+      /* Per-pixel weather (mesoscale) → ETo/precip become map layers too. These
+         come straight from the sampled bounding box, so mask them to the run's
+         validMask — the same footprint (drawn/region polygon minus no-data) that
+         clips every modeled variable — or they'd spill past the boundary. */
       if (data.weatherStacks) {
-        result.daily.ETo = data.weatherStacks.eto;
-        result.daily.Precip = data.weatherStacks.prcp;
+        result.daily.ETo = maskDailyToValid(data.weatherStacks.eto, result.validMask, result.T, grid.nPixels);
+        result.daily.Precip = maskDailyToValid(data.weatherStacks.prcp, result.validMask, result.T, grid.nPixels);
       }
       if (state.fieldShape) {
         const L = window.L, s = state.fieldShape;
-        result.fieldShape = (s instanceof L.Circle)
-          ? { kind: 'circle', center: [s.getLatLng().lat, s.getLatLng().lng], radius: s.getRadius() }
-          : { kind: 'poly', latlngs: s.getLatLngs()[0].map((ll) => [ll.lat, ll.lng]) };
+        if (s instanceof L.Circle) {
+          result.fieldShape = { kind: 'circle', center: [s.getLatLng().lat, s.getLatLng().lng], radius: s.getRadius() };
+        } else {
+          /* Outline the largest outer ring (multipolygon regions have several). */
+          const rings = shapeOuterRings(s);
+          const outer = rings.reduce((a, b) => (b.length > a.length ? b : a), rings[0]);
+          result.fieldShape = { kind: 'poly', latlngs: outer.map(([lng, lat]) => [lat, lng]) };
+        }
       }
 
       state.result = result;
@@ -412,7 +543,16 @@ export function createSpatialTool(config) {
       setStatus(`Done — ${result.nValid} pixels, ${data.nViDates} clear VI dates, ${(ms / 1000).toFixed(1)} s.`, 'ok');
     } catch (e) {
       console.error(e);
-      setStatus(`Failed: ${e.message}`, 'error');
+      /* An expired/invalid token surfaces here as an auth error. Flip back to
+         signed-out so the button stops claiming "Signed in" and prompts a
+         re-sign-in, rather than leaving a dead session that keeps failing. */
+      if (/authenticat|credential|oauth|unauthorized|401/i.test(e.message || '')) {
+        clearGeeSession();
+        setAuth('', 'Session expired — sign in again, then re-run.');
+        setStatus('Session expired — sign in again, then re-run.', 'error');
+      } else {
+        setStatus(`Failed: ${e.message}`, 'error');
+      }
     } finally {
       syncSize();
     }
@@ -430,4 +570,6 @@ export function createSpatialTool(config) {
   };
 }
 
+/* Field Scale: 30 m, draw or upload a real field. No region picker or grid-
+   resolution steps — a county is a Mesoscale object (see tools/mesoscale). */
 export default createSpatialTool({ title: 'Field Scale', docs: DOCS, sources: FIELD_SOURCES });

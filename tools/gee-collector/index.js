@@ -19,10 +19,14 @@ import { createWorkbench } from '../../ui/workbench.js';
 import { chartCard, plot, VIZ } from '../../ui/plotly.js';
 import { GEE_OAUTH_CLIENT_ID } from '../../app/config.js';
 import { saveGeeSession, loadGeeSession, clearGeeSession, savedProject, saveProject } from '../../app/geeSession.js';
+import { geeProjectHelp } from '../../app/geeHelp.js';
 import { regionArrayToRows, gridmetToWeather, modisToVi, kcbSeries, assembleCsv } from './gee.js';
 import { DOCS } from './docs.js';
 
-const DEFAULT = { lat: 39.0845, lon: -96.5563, start: '2021-06-01', end: '2021-08-31', soil: 0.15, veg: 0.85 };
+/* Default period: Jan 1 through ~a week ago (GRIDMET lags the present a few
+   days). Start uses the end's year so early-January still yields start ≤ end. */
+const DEFAULT_END = new Date(Date.now() - 7 * 86400000);
+const DEFAULT = { lat: 39.0845, lon: -96.5563, start: `${DEFAULT_END.getFullYear()}-01-01`, end: DEFAULT_END.toISOString().slice(0, 10), soil: 0.15, veg: 0.85 };
 
 /* create() runs once (the view is cached); it stashes the instance's map
    initialiser here so the module-level onShow can (re)fit the map each time
@@ -65,7 +69,7 @@ function create() {
   const signInBtn = btn('Sign in with Google', { kind: 'neon', small: true, block: true, onClick: signIn });
   const authStatus = el('div', { class: 'hint', style: { marginTop: '0.3rem' } }, 'Not connected.');
   const gEE = group('Earth Engine', { open: true });
-  gEE.body.append(ctrl('Project ID', projectIn.el));
+  gEE.body.append(ctrl('Project ID', projectIn.el), geeProjectHelp());
   if (!appConfigured) gEE.body.append(ctrl('OAuth Client ID', clientIn.el));
   gEE.body.append(
     el('div', { style: { marginTop: '0.4rem' } }, signInBtn),
@@ -185,7 +189,7 @@ function create() {
     setAuth('', 'Reconnecting to Earth Engine…');
     ee.data.setAuthToken(clientId, 'Bearer', s.token, s.expiresInSec, null, () => {
       ee.initialize(null, null,
-        () => setAuth('ok', `Connected · project ${project} (restored)`),
+        () => { setAuth('ok', `Connected · project ${project} (restored)`); armExpiry(s.expiresInSec); },
         () => { clearGeeSession(); setAuth('', 'Session expired — sign in again.'); }, null, project);
     }, false);
   }
@@ -194,10 +198,27 @@ function create() {
 
   /* ── OAuth + Earth Engine init ──────────────────────────────────────── */
 
+  /* Google access tokens live ~1 h with no refresh token. Flip the UI back to
+     signed-out shortly before expiry so the button never claims "Signed in"
+     over a dead token (a request would then fail with an auth error). */
+  let expiryTimer = null;
+  function clearExpiry() { if (expiryTimer) { clearTimeout(expiryTimer); expiryTimer = null; } }
+  function armExpiry(remainingSec) {
+    clearExpiry();
+    const ms = Math.max(0, (remainingSec || 3600) - 60) * 1000;
+    expiryTimer = setTimeout(() => { clearGeeSession(); setAuth('', 'Session expired — sign in again.'); }, ms);
+  }
+
   function setAuth(kind, msg) {
     authStatus.textContent = msg;
     authStatus.className = `hint${kind === 'ok' ? ' is-ok' : ''}`;
     state.authed = kind === 'ok';
+    if (!state.authed) clearExpiry();
+    /* Reflect the state on the button so a connected user isn't unsure whether
+       to click again; it stays clickable so they can re-auth or switch project.
+       Drop the neon call-to-action look once connected. */
+    signInBtn.textContent = state.authed ? '✓ Signed in' : 'Sign in with Google';
+    signInBtn.classList.toggle('btn--neon', !state.authed);
     collectBtn.disabled = !state.authed;
     updateHead();
   }
@@ -220,6 +241,7 @@ function create() {
             ee.initialize(null, null, () => {
               saveGeeSession(resp.access_token, resp.expires_in, project);
               setAuth('ok', `Connected · project ${project}`);
+              armExpiry(resp.expires_in);
             }, (err) => setAuth('err', `EE init failed: ${err}`), null, project);
           }, false);
         },
@@ -261,7 +283,18 @@ function create() {
       wb.setOutputsEnabled(true);
       wb.showTab('outputs');
       setStatus(`Done — ${fmtInt(weather.length)} days, ${fmtInt(vi.length)} clear VI observations.`, 'ok');
-    } catch (e) { console.error(e); setStatus(`Failed: ${e.message}`, 'error'); }
+    } catch (e) {
+      console.error(e);
+      /* An expired/invalid token surfaces here — flip back to signed-out so the
+         button prompts a re-sign-in instead of claiming "Signed in". */
+      if (/authenticat|credential|oauth|unauthorized|401/i.test(e.message || '')) {
+        clearGeeSession();
+        setAuth('', 'Session expired — sign in again, then re-run.');
+        setStatus('Session expired — sign in again, then re-run.', 'error');
+      } else {
+        setStatus(`Failed: ${e.message}`, 'error');
+      }
+    }
   }
 
   function currentOpts() { return { index: indexSel.get(), soil: soilIn.get(), veg: vegIn.get(), interpolate: interpChk.get(), extrap: extrapSel.get() }; }

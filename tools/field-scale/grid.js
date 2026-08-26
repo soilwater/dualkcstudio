@@ -50,16 +50,15 @@ export function gridShape(rect, scaleM) {
   return { cols, rows, nPixels: cols * rows };
 }
 
-/** Size report against the dataset's hard area cap in hectares (`opts.maxHa`). */
+/**
+ * Size report for an AOI at a given resolution: area, and the pixel grid it
+ * implies. There is no cap here — the caller decides what to do with the
+ * numbers (the tools only surface a soft heads-up on a large grid; Earth Engine
+ * enforces the real limits at run time).
+ */
 export function checkAoi(rect, opts) {
   const ha = rectHectares(rect);
   const { cols, rows, nPixels } = gridShape(rect, opts.scaleM);
   const { widthM, heightM } = rectMetres(rect);
-  const maxHa = opts.maxHa || Infinity;
-  return {
-    ha, km2: ha / 100.0, cols, rows, nPixels, widthM, heightM,
-    ok: ha <= maxHa + 1e-6,
-    overBy: ha / maxHa,
-    maxHa, scaleM: opts.scaleM,
-  };
+  return { ha, km2: ha / 100.0, cols, rows, nPixels, widthM, heightM, scaleM: opts.scaleM };
 }

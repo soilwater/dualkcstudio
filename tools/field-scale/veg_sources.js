@@ -18,7 +18,6 @@
  *   scaleM       — target grid resolution in metres
  *   nativeM      — source resolution, for mean aggregation onto a coarser grid
  *   soil         — id of the paired soil source (soil_sources.js)
- *   maxHa        — hard area cap in hectares for a drawn field
  */
 
 export const VEG_SOURCES = {
@@ -34,16 +33,15 @@ export const VEG_SOURCES = {
     scaleM: 30,
     nativeM: 30,
     soil: 'polaris',              /* 30 m POLARIS matches the 30 m grid (CONUS) */
-    maxHa: 2500,                  /* large fields / small watersheds */
     note: 'Cloud-free 8-day composite, low latency, EVI only. Field scale at 30 m over POLARIS soil.',
   },
 
-  /* Mesoscale (4 km): large watersheds and regions (up to 250,000 km²). VIIRS
-     (500 m native) aggregates gently to 4 km; a 30 m source at this scale
+  /* Mesoscale: large watersheds and regions. VIIRS (500 m native) mean-
+     aggregates gently to the coarser grids; a 30 m source at this scale
      overflows Earth Engine's memory, so Landsat is field-only. */
   viirs4km: {
     id: 'viirs4km',
-    label: 'VIIRS VNP13A1 — 4 km (mesoscale)',
+    label: 'VIIRS VNP13A1 EVI',
     group: 'meso',
     weather: 'spatial',
     collection: 'NASA/VIIRS/002/VNP13A1',
@@ -53,8 +51,7 @@ export const VEG_SOURCES = {
     scaleM: 4000,
     nativeM: 500,                 /* VIIRS 500 m aggregated (mean) to the 4 km grid */
     soil: 'soilgrids',
-    maxHa: 25000000,              /* 250,000 km² */
-    note: 'VIIRS 500 m EVI on a 4 km grid over SoilGrids soil — large watersheds and regions.',
+    note: 'VIIRS 500 m EVI over SoilGrids soil — pick the grid resolution (500 m–4 km) to match the region size. Large watersheds and regions.',
   },
 };
 
