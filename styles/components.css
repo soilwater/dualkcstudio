@@ -30,7 +30,7 @@
   font-weight: 650;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--ink);            /* a section heading, not a caption — keep it legible */
 }
 .group__hint {
   font-size: 0.68rem;
@@ -44,8 +44,8 @@
 .group__hint.is-ok { color: var(--neon); }
 .group__chev {
   width: 0.45rem; height: 0.45rem;
-  border-right: 1.5px solid var(--muted);
-  border-bottom: 1.5px solid var(--muted);
+  border-right: 1.5px solid var(--neon);   /* subtle "collapsible" affordance cue */
+  border-bottom: 1.5px solid var(--neon);
   transform: rotate(-45deg);
   transition: transform 0.12s ease;
   flex-shrink: 0;

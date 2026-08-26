@@ -33,10 +33,17 @@ const CMAPS = {
   Blues: [[247, 251, 255], [198, 219, 239], [107, 174, 214], [33, 113, 181], [8, 48, 107]],
   /* Divergent brown→teal for volumetric water content (dry → wet). */
   BrBG: [[140, 81, 10], [191, 129, 45], [223, 194, 125], [246, 232, 195], [199, 234, 229], [128, 205, 193], [53, 151, 143], [1, 102, 94]],
+  /* Divergent purple→green (ColorBrewer PRGn) with a neutral midpoint — used
+     for the E/T fractions so 0.5 reads as the reference and the two ends
+     (green vs purple) are easy to tell apart. */
+  PRGn: [[118, 42, 131], [153, 112, 171], [194, 165, 207], [231, 212, 232], [247, 247, 247], [217, 240, 211], [166, 219, 160], [90, 174, 97], [27, 120, 55]],
 };
 /* Teal→brown (wet→dry): reversed BrBG for a diverging deficit map where the
    high (positive) end reads dry and the low (negative) end reads wet. */
 CMAPS.BrBG_r = CMAPS.BrBG.slice().reverse();
+/* Green→purple: reversed PRGn, so green sits at the LOW end (used for E/ETc,
+   where a low evaporation fraction is the "good"/green side). */
+CMAPS.PRGn_r = CMAPS.PRGn.slice().reverse();
 
 /* Per-pixel derived layers, with NaN where a source is masked or the ratio's
    denominator is ~0 (avoids noise where cumulative ET is negligible). */
@@ -81,8 +88,10 @@ const VARS = {
   precip_sum: { label: 'Cumulative precipitation', unit: 'mm', kind: 'summary', cmap: 'Blues' },
   eto_sum: { label: 'Cumulative reference ET (ETo)', unit: 'mm', kind: 'summary', cmap: 'YlOrRd' },
   /* Derived layers: computed per pixel from the cumulative summaries. */
-  E_frac: { label: 'Evaporation fraction (E/ETc)', unit: '–', kind: 'derived', cmap: 'YlOrRd', fixed: [0, 1], deps: ['E_sum', 'ETc_sum'], compute: (S) => ratioArr(S.E_sum, S.ETc_sum) },
-  T_frac: { label: 'Transpiration fraction (T/ETc)', unit: '–', kind: 'derived', cmap: 'greens', fixed: [0, 1], deps: ['T_sum', 'ETc_sum'], compute: (S) => ratioArr(S.T_sum, S.ETc_sum) },
+  /* Fixed 0–1 with a diverging purple↔green map puts the neutral tone at 0.5;
+     green marks the "efficient" side of each — low E/ETc and high T/ETc. */
+  E_frac: { label: 'Evaporation fraction (E/ETc)', unit: '–', kind: 'derived', cmap: 'PRGn_r', fixed: [0, 1], deps: ['E_sum', 'ETc_sum'], compute: (S) => ratioArr(S.E_sum, S.ETc_sum) },
+  T_frac: { label: 'Transpiration fraction (T/ETc)', unit: '–', kind: 'derived', cmap: 'PRGn', fixed: [0, 1], deps: ['T_sum', 'ETc_sum'], compute: (S) => ratioArr(S.T_sum, S.ETc_sum) },
   atmDef: { label: 'Atmospheric water deficit (ETo−P)', unit: 'mm', kind: 'derived', cmap: 'BrBG_r', diverging: true, deps: ['eto_sum', 'precip_sum'], compute: (S) => diffArr(S.eto_sum, S.precip_sum) },
   stressDays: { label: 'Water-stress days', unit: 'd', kind: 'summary', cmap: 'YlOrRd' },
   finalPaw: { label: 'Final available water', unit: 'mm', kind: 'summary', cmap: 'YlGnBu' },
@@ -96,7 +105,10 @@ function injectStyle() {
 .spatial-legend{background:rgba(20,23,28,.82);border:1px solid var(--border,#2a2f3a);border-radius:8px;padding:8px 10px;color:var(--ink-2,#c3c8d2);font:11px Inter,sans-serif;line-height:1.35;}
 .spatial-legend .lg-bar{width:14px;height:120px;border-radius:3px;border:1px solid rgba(255,255,255,.12);}
 .spatial-legend .lg-wrap{display:flex;gap:7px;align-items:stretch;}
-.spatial-legend .lg-ticks{display:flex;flex-direction:column;justify-content:space-between;}`;
+.spatial-legend .lg-ticks{display:flex;flex-direction:column;justify-content:space-between;}
+.spatial-readout{background:rgba(20,23,28,.82);border:1px solid var(--border,#2a2f3a);border-radius:8px;padding:5px 9px;color:var(--ink,#f5f6f8);font:12px Inter,sans-serif;line-height:1.3;pointer-events:none;}
+.spatial-readout .ro-val{font-variant-numeric:tabular-nums;font-weight:600;}
+.spatial-readout .ro-sub{color:var(--muted,#9aa2ae);font-size:10.5px;}`;
   document.head.appendChild(s);
 }
 
@@ -126,6 +138,7 @@ export function createResults() {
   let awc = null;               /* computed available-water grid, cached */
 
   let map = null, overlay = null, marker = null, legend = null, legendEl = null, fieldBoundary = null;
+  let readoutCtl = null, readoutEl = null, hoverPixel = null;   /* live value-at-cursor readout */
   let fitted = false;           /* has the map been fit to bounds at real size? */
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
@@ -230,6 +243,7 @@ export function createResults() {
     if (overlay) overlay.setUrl(url);
     else overlay = window.L.imageOverlay(url, bounds(), { opacity, className: 'gridoverlay', interactive: false }).addTo(map);
     updateLegend();
+    updateReadout();   /* keep the cursor readout in sync with variable/day */
   }
 
   function updateLegend() {
@@ -426,16 +440,39 @@ export function createResults() {
     legend.onAdd = () => { legendEl = L.DomUtil.create('div', 'spatial-legend'); L.DomEvent.disableClickPropagation(legendEl); return legendEl; };
     legend.addTo(map);
 
+    /* Live value-at-cursor readout (bottom-left), so exact magnitudes are
+       legible on any layer without reading them off the colour ramp. */
+    readoutCtl = L.control({ position: 'bottomleft' });
+    readoutCtl.onAdd = () => { readoutEl = L.DomUtil.create('div', 'spatial-readout'); readoutEl.style.display = 'none'; return readoutEl; };
+    readoutCtl.addTo(map);
+
+    /* lat/lng → grid row/col, or null when outside the data rectangle. */
+    const pixelAt = (latlng) => {
+      const r = R.rect;
+      const col = Math.floor((latlng.lng - r.west) / (r.east - r.west) * R.cols);
+      const row = Math.floor((r.north - latlng.lat) / (r.north - r.south) * R.rows);
+      if (row < 0 || col < 0 || row >= R.rows || col >= R.cols) return null;
+      return { r: row, c: col, p: row * R.cols + col };
+    };
+
     map.on('click', (e) => {
       if (!R) return;
-      const r = R.rect;
-      const col = Math.floor((e.latlng.lng - r.west) / (r.east - r.west) * R.cols);
-      const row = Math.floor((r.north - e.latlng.lat) / (r.north - r.south) * R.rows);
-      if (row < 0 || col < 0 || row >= R.rows || col >= R.cols) return;
-      selPixel = { r: row, c: col, p: row * R.cols + col };
-      markPixel(); renderPixel();
+      const px = pixelAt(e.latlng); if (!px) return;
+      selPixel = px; markPixel(); renderPixel();
     });
+    map.on('mousemove', (e) => { if (R) { hoverPixel = pixelAt(e.latlng); updateReadout(); } });
+    map.on('mouseout', () => { hoverPixel = null; updateReadout(); });
     map.setView([0, 0], 2);
+  }
+
+  /* Refresh the value-at-cursor box for the current variable/day. */
+  function updateReadout() {
+    if (!readoutEl) return;
+    if (!R || !hoverPixel) { readoutEl.style.display = 'none'; return; }
+    const m = VARS[curVar], v = slice(curVar, curDay)[hoverPixel.p];
+    const val = Number.isFinite(v) ? `${fmtNum(v)}${m.unit && m.unit !== '–' ? ' ' + m.unit : ''}` : 'no data';
+    readoutEl.innerHTML = `<span class="ro-val">${val}</span> <span class="ro-sub">row ${hoverPixel.r}, col ${hoverPixel.c}</span>`;
+    readoutEl.style.display = '';
   }
 
   /* Which variables this result actually carries (ETo/precip only exist for a
@@ -454,7 +491,7 @@ export function createResults() {
     R = result;
     for (const k in ranges) delete ranges[k];
     for (const k in derivedCache) delete derivedCache[k];
-    awc = null; curDay = 0; selPixel = null;
+    awc = null; curDay = 0; selPixel = null; hoverPixel = null;
     const avail = availableVars();
     if (!avail.includes(curVar)) curVar = avail[0];
     varSel.setOptions(avail.map((v) => ({ value: v, label: VARS[v].label })), curVar);
