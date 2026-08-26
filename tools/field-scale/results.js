@@ -34,6 +34,22 @@ const CMAPS = {
   /* Divergent brown→teal for volumetric water content (dry → wet). */
   BrBG: [[140, 81, 10], [191, 129, 45], [223, 194, 125], [246, 232, 195], [199, 234, 229], [128, 205, 193], [53, 151, 143], [1, 102, 94]],
 };
+/* Teal→brown (wet→dry): reversed BrBG for a diverging deficit map where the
+   high (positive) end reads dry and the low (negative) end reads wet. */
+CMAPS.BrBG_r = CMAPS.BrBG.slice().reverse();
+
+/* Per-pixel derived layers, with NaN where a source is masked or the ratio's
+   denominator is ~0 (avoids noise where cumulative ET is negligible). */
+const ratioArr = (a, b) => {
+  const o = new Float32Array(a.length);
+  for (let i = 0; i < a.length; i++) { const x = a[i], y = b[i]; o[i] = (Number.isFinite(x) && Number.isFinite(y) && Math.abs(y) > 1e-6) ? x / y : NaN; }
+  return o;
+};
+const diffArr = (a, b) => {
+  const o = new Float32Array(a.length);
+  for (let i = 0; i < a.length; i++) { const x = a[i], y = b[i]; o[i] = (Number.isFinite(x) && Number.isFinite(y)) ? x - y : NaN; }
+  return o;
+};
 
 function lerp(cmap, t) {
   t = Math.min(1, Math.max(0, t));
@@ -63,6 +79,11 @@ const VARS = {
   E_sum: { label: 'Cumulative evaporation', unit: 'mm', kind: 'summary', cmap: 'YlOrRd' },
   deepPerc_sum: { label: 'Cumulative deep percolation', unit: 'mm', kind: 'summary', cmap: 'YlGnBu' },
   precip_sum: { label: 'Cumulative precipitation', unit: 'mm', kind: 'summary', cmap: 'Blues' },
+  eto_sum: { label: 'Cumulative reference ET (ETo)', unit: 'mm', kind: 'summary', cmap: 'YlOrRd' },
+  /* Derived layers: computed per pixel from the cumulative summaries. */
+  E_frac: { label: 'Evaporation fraction (E/ETc)', unit: '–', kind: 'derived', cmap: 'YlOrRd', fixed: [0, 1], deps: ['E_sum', 'ETc_sum'], compute: (S) => ratioArr(S.E_sum, S.ETc_sum) },
+  T_frac: { label: 'Transpiration fraction (T/ETc)', unit: '–', kind: 'derived', cmap: 'greens', fixed: [0, 1], deps: ['T_sum', 'ETc_sum'], compute: (S) => ratioArr(S.T_sum, S.ETc_sum) },
+  atmDef: { label: 'Atmospheric water deficit (ETo−P)', unit: 'mm', kind: 'derived', cmap: 'BrBG_r', diverging: true, deps: ['eto_sum', 'precip_sum'], compute: (S) => diffArr(S.eto_sum, S.precip_sum) },
   stressDays: { label: 'Water-stress days', unit: 'd', kind: 'summary', cmap: 'YlOrRd' },
   finalPaw: { label: 'Final available water', unit: 'mm', kind: 'summary', cmap: 'YlGnBu' },
 };
@@ -101,6 +122,7 @@ export function createResults() {
   injectStyle();
   let R = null, curVar = 'Kcb', curDay = 0, opacity = 0.8, selPixel = null;
   const ranges = {};            /* var → [lo, hi], season-anchored, cached */
+  const derivedCache = {};      /* var → computed Float32Array, cached */
   let awc = null;               /* computed available-water grid, cached */
 
   let map = null, overlay = null, marker = null, legend = null, legendEl = null, fieldBoundary = null;
@@ -152,6 +174,7 @@ export function createResults() {
     const m = VARS[varName], nP = R.rows * R.cols;
     if (m.kind === 'daily') return R.daily[varName].subarray(day * nP, (day + 1) * nP);
     if (m.kind === 'summary') return R.summary[varName];
+    if (m.kind === 'derived') return (derivedCache[varName] ||= m.compute(R.summary));
     if (varName === 'FC') return R.soil.rootzone_fc;
     if (varName === 'WP') return R.soil.rootzone_wp;
     /* AWC */
@@ -170,6 +193,9 @@ export function createResults() {
     if (m.kind === 'daily') scan(R.daily[varName]);       /* every day at once */
     else scan(slice(varName, 0));
     if (!(hi > lo)) { hi = lo + 1; }
+    /* A diverging layer (e.g. ETo−P) is anchored symmetrically about 0 so the
+       neutral colour always sits at zero — deficit one side, surplus the other. */
+    if (m.diverging) { const A = Math.max(Math.abs(lo), Math.abs(hi)) || 1; lo = -A; hi = A; }
     return (ranges[varName] = [lo, hi]);
   }
 
@@ -419,6 +445,7 @@ export function createResults() {
       const m = VARS[v];
       if (m.kind === 'daily') return !!(R.daily && R.daily[v]);
       if (m.kind === 'summary') return !!(R.summary && R.summary[v]);
+      if (m.kind === 'derived') return !!(R.summary && m.deps.every((d) => R.summary[d]));
       return !!R.soil;   /* soil layers */
     });
   }
@@ -426,6 +453,7 @@ export function createResults() {
   function setData(result) {
     R = result;
     for (const k in ranges) delete ranges[k];
+    for (const k in derivedCache) delete derivedCache[k];
     awc = null; curDay = 0; selPixel = null;
     const avail = availableVars();
     if (!avail.includes(curVar)) curVar = avail[0];

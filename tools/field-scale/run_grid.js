@@ -57,7 +57,7 @@ export function runGrid(grid, soil, scalars, kcbStack, dates, weather, crop, mgm
   const daily = {};
   for (const v of dailyVars) daily[v] = new Float32Array(T * nPixels).fill(NaN);
   const summary = {};
-  for (const v of ['ETc_sum', 'T_sum', 'E_sum', 'deepPerc_sum', 'precip_sum', 'stressDays', 'finalPaw']) {
+  for (const v of ['ETc_sum', 'T_sum', 'E_sum', 'deepPerc_sum', 'precip_sum', 'eto_sum', 'stressDays', 'finalPaw']) {
     summary[v] = new Float32Array(nPixels).fill(NaN);
   }
   const validMask = new Uint8Array(nPixels);
@@ -119,12 +119,13 @@ export function runGrid(grid, soil, scalars, kcbStack, dates, weather, crop, mgm
     }
 
     const df = res.df;
-    let etcSum = 0, tSum = 0, eSum = 0, dpSum = 0, pSum = 0, stress = 0;
+    let etcSum = 0, tSum = 0, eSum = 0, dpSum = 0, pSum = 0, etoSum = 0, stress = 0;
     for (let t = 0; t < T; t++) {
       const r = df[t];
       for (const v of dailyVars) daily[v][t * nPixels + p] = r[v];
       etcSum += r.ETc; tSum += r.T; eSum += r.E; dpSum += r.deep_percolation;
       pSum += pixelWeather[t].prcp || 0;   /* cumulative precipitation forcing */
+      etoSum += pixelWeather[t].ETo || 0;  /* cumulative reference ET forcing */
       if (r.Ks < 0.999) stress++;
     }
     summary.ETc_sum[p] = etcSum;
@@ -132,6 +133,7 @@ export function runGrid(grid, soil, scalars, kcbStack, dates, weather, crop, mgm
     summary.E_sum[p] = eSum;
     summary.deepPerc_sum[p] = dpSum;
     summary.precip_sum[p] = pSum;
+    summary.eto_sum[p] = etoSum;
     summary.stressDays[p] = stress;
     summary.finalPaw[p] = df[T - 1].Sr_paw;
 

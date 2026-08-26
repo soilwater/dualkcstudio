@@ -199,7 +199,8 @@ export function createSpatialTool(config) {
   const irrigSel = selectInput({ options: [{ value: 'rainfed', label: 'Rainfed' }, { value: 'auto', label: 'Auto (MAD trigger)' }], value: 'rainfed', onChange: (v) => { autoRow.hidden = v !== 'auto'; } });
   const madIn = numInput({ value: 0.5, min: 0.2, max: 0.8, step: 0.05 });
   const amtIn = numInput({ value: 25, min: 5, max: 75, step: 5 });
-  const autoRow = el('div', {}, ctrl('MAD trigger', madIn.el), ctrl('Irrigation amount', amtIn.el, { unit: 'mm' }));
+  const autoRow = el('div', {}, ctrl('MAD trigger', madIn.el),
+    ctrl('Irrigation amount', amtIn.el, { unit: 'mm', help: 'Per event the model applies min(this amount, depth needed to refill the root zone to field capacity).' }));
   autoRow.hidden = true;
   const gMgmt = group('Management', { open: false });
   gMgmt.body.append(
