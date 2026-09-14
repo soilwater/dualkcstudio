@@ -19,6 +19,7 @@
 
 import { regionArrayToRows, gridmetToWeather } from '../gee-collector/gee.js';
 import { flattenGrid, soilLimitsFromBands, viFromBands } from './assemble.js';
+import { sourceIndex } from './veg_sources.js';
 
 const SENTINEL = -9999;
 
@@ -71,11 +72,11 @@ function crop2d(arr, rows, cols) {
  *     weather }                 — centroid mode: array of engine weather rows
  *     weatherStacks }           — spatial mode: per-pixel Float32 stacks
  *
- * params: { rect:{west,south,east,north}, cols, rows, start, end, index,
+ * params: { rect:{west,south,east,north}, cols, rows, start, end,
  *           soilSource, vegSource, weatherMode, maxViDates, maxCloud, onProgress }
  */
 export async function collectGrid(ee, params) {
-  const { rect, cols: targetCols, rows: targetRows, start, end, index, maxViDates = 600, onProgress } = params;
+  const { rect, cols: targetCols, rows: targetRows, start, end, maxViDates = 600, onProgress } = params;
   const soilSrc = params.soilSource;
   const say = (m) => onProgress && onProgress(m);
   const eeRect = ee.Geometry.Rectangle([rect.west, rect.south, rect.east, rect.north], null, false);
@@ -123,7 +124,8 @@ export async function collectGrid(ee, params) {
      requested index, scale factor, optional QA band. The VI band is renamed
      'VI' (and QA 'QA') so this loop is source-agnostic. */
   const src = params.vegSource;
-  const viBandName = src.bands[index] || src.bands.evi;
+  const index = sourceIndex(src);
+  const viBandName = src.bands[index];
   say(`Finding ${src.label} observation dates…`);
   const selBands = src.qa ? [viBandName, src.qa.band] : [viBandName];
   const selNames = src.qa ? ['VI', 'QA'] : ['VI'];

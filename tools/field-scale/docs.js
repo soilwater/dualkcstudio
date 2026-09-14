@@ -27,13 +27,15 @@ runs. For larger areas use the Mesoscale tool.</p>
 <h3>Data sources</h3>
 <table>
   <tr><th>layer</th><th>source</th></tr>
-  <tr><td>Canopy</td><td><strong>Sentinel-2 EVI or NDVI</strong> (10 m native,
+  <tr><td>Canopy</td><td><strong>Sentinel-2 EVI</strong> (10 m native,
       2019 on, 5-day revisit), computed from harmonized L2A surface reflectance.
       Scenes above the chosen cloud-cover tolerance are skipped whole; inside the
       kept scenes the Cloud Score+ mask removes residual cloud, shadow and haze
       pixels, and a masked pixel simply skips that date in its own Kcb
-      interpolation. Run at 10 m for small fields or 30 m (mean of the 10 m
-      pixels) for larger ones. <strong>Landsat 8/9 EVI</strong> (30 m, 2013 on,
+      interpolation. Pick the 10 m source for small fields or the 30 m source
+      (mean of the 10 m pixels, nine times fewer pixels) for larger ones; a
+      grid too large for Earth Engine fails with EE's own message in the run
+      status. <strong>Landsat 8/9 EVI</strong> (30 m, 2013 on,
       QA_PIXEL mask) is offered for earlier periods. Each clear observation is
       linearly rescaled to Kcb between a bare-soil endpoint (VI 0.15 → Kcb min)
       and a full-cover endpoint (VI 0.80 → Kcb max), then interpolated to daily

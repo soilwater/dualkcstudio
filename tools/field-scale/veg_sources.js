@@ -19,13 +19,13 @@
  *                  index is computed here.
  *   cloudFilter  — true to expose the scene cloud-cover tolerance (%) in the UI;
  *                  passed to build() as maxCloud
- *   bands        — { evi?, ndvi? } band names; a source may offer only one
+ *   bands        — { evi: bandName } — ONE index per source (the index is part
+ *                  of the source's identity; a second index is a second entry)
  *   scaleFactor  — band value → index units (1 for a float composite)
  *   qa           — { band, max } to mask by a reliability band, or null when
  *                  build() already masks clouds (mask no-data only)
- *   scaleM       — default grid resolution in metres
- *   resolutions  — optional list of grid resolutions the user may pick (a grid
- *                  coarser than nativeM is a MEAN of the source pixels)
+ *   scaleM       — grid resolution in metres (one per source; a grid coarser
+ *                  than nativeM is a MEAN of the source pixels)
  *   nativeM      — source resolution, for mean aggregation onto a coarser grid
  *   soil         — id of the paired soil source (soil_sources.js)
  */
@@ -57,12 +57,12 @@ function buildLandsatSrEvi(ee, { start, endExcl, region, maxCloud }) {
 }
 
 /**
- * Sentinel-2 L2A surface reflectance (harmonized) → EVI and NDVI, cloud-masked.
+ * Sentinel-2 L2A surface reflectance (harmonized) → EVI, cloud-masked.
  *   scenes    : COPERNICUS/S2_SR_HARMONIZED, CLOUDY_PIXEL_PERCENTAGE ≤ maxCloud
  *               (the scene-level filter: a scene is in or out as a whole)
  *   mask      : Cloud Score+ (cs_cdf ≥ CS_CLEAR) for the residual cloud, shadow
  *               and haze pixels inside the kept scenes
- *   EVI/NDVI  : on reflectance (DN × 1e-4) from B2 / B4 / B8, all 10 m native
+ *   EVI       : on reflectance (DN × 1e-4) from B2 / B4 / B8, all 10 m native
  */
 const CS_CLEAR = 0.6;
 function buildSentinel2(ee, { start, endExcl, region, maxCloud }) {
@@ -71,9 +71,8 @@ function buildSentinel2(ee, { start, endExcl, region, maxCloud }) {
     const sr = img.select(['B2', 'B4', 'B8']).multiply(1e-4);
     const N = sr.select('B8'), R = sr.select('B4'), B = sr.select('B2');
     const evi = sr.expression('2.5 * (N - R) / (N + 6 * R - 7.5 * B + 1)', { N, R, B }).rename('EVI');
-    const ndvi = N.subtract(R).divide(N.add(R)).rename('NDVI');
     const clear = img.select('cs_cdf').gte(CS_CLEAR);
-    return ee.Image(evi.addBands(ndvi).updateMask(clear).copyProperties(img, ['system:time_start']));
+    return ee.Image(evi.updateMask(clear).copyProperties(img, ['system:time_start']));
   };
   return ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
     .filterDate(start, endExcl).filterBounds(region)
@@ -82,23 +81,41 @@ function buildSentinel2(ee, { start, endExcl, region, maxCloud }) {
     .map(prep);
 }
 
+/* Order = dropdown order; the first field entry is the default (30 m: safe
+   for most fields). */
 export const VEG_SOURCES = {
-  sentinel2: {
-    id: 'sentinel2',
-    label: 'Sentinel-2 EVI / NDVI — 10–30 m',
+  sentinel2Evi30: {
+    id: 'sentinel2Evi30',
+    label: 'Sentinel-2 EVI — 30 m',
     group: 'field',
     weather: 'centroid',
     collection: 'COPERNICUS/S2_SR_HARMONIZED',
     build: buildSentinel2,
     cloudFilter: true,
-    bands: { evi: 'EVI', ndvi: 'NDVI' },
+    bands: { evi: 'EVI' },
     scaleFactor: 1,
     qa: null,                     /* clouds masked in build() */
-    scaleM: 30,                   /* default: 30 m keeps the daily stacks small */
+    scaleM: 30,                   /* mean of the 10 m pixels: nine times fewer pixels */
     nativeM: 10,
-    resolutions: [10, 30],
     soil: 'polaris',
-    note: 'EVI or NDVI from Sentinel-2 surface reflectance (2019 on, 5-day revisit) with the Cloud Score+ mask; scenes above the cloud-cover tolerance are skipped whole. 10 m for small fields, 30 m (mean of 10 m pixels) for larger ones, over POLARIS soil.',
+    note: 'EVI from Sentinel-2 surface reflectance (2019 on, 5-day revisit) with the Cloud Score+ mask; scenes above the cloud-cover tolerance are skipped whole. Each 30 m pixel is the mean of the 10 m pixels. POLARIS soil.',
+  },
+
+  sentinel2Evi10: {
+    id: 'sentinel2Evi10',
+    label: 'Sentinel-2 EVI — 10 m',
+    group: 'field',
+    weather: 'centroid',
+    collection: 'COPERNICUS/S2_SR_HARMONIZED',
+    build: buildSentinel2,
+    cloudFilter: true,
+    bands: { evi: 'EVI' },
+    scaleFactor: 1,
+    qa: null,                     /* clouds masked in build() */
+    scaleM: 10,
+    nativeM: 10,
+    soil: 'polaris',
+    note: 'EVI from Sentinel-2 surface reflectance (2019 on, 5-day revisit) with the Cloud Score+ mask; scenes above the cloud-cover tolerance are skipped whole. Native 10 m: small fields only — a large grid may exceed Earth Engine memory. POLARIS soil.',
   },
 
   landsatSrEvi: {
@@ -142,10 +159,10 @@ export const FIELD_SOURCES = VEG_LIST.filter((s) => s.group === 'field');
 export const MESO_SOURCES = VEG_LIST.filter((s) => s.group === 'meso');
 
 export function getVegSource(id) {
-  return VEG_SOURCES[id] || VEG_SOURCES.sentinel2;
+  return VEG_SOURCES[id] || VEG_SOURCES.sentinel2Evi30;
 }
 
-/** The index keys a source offers, e.g. ['evi']. */
-export function indexOptions(src) {
-  return Object.keys(src.bands).map((k) => ({ value: k, label: k.toUpperCase() }));
+/** The single index key a source provides, e.g. 'evi'. */
+export function sourceIndex(src) {
+  return Object.keys(src.bands)[0];
 }

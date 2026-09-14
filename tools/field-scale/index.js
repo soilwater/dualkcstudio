@@ -18,7 +18,7 @@ import { createWorkbench } from '../../ui/workbench.js';
 import { GEE_OAUTH_CLIENT_ID } from '../../app/config.js';
 import { saveGeeSession, loadGeeSession, clearGeeSession, savedProject, saveProject } from '../../app/geeSession.js';
 import { geeProjectHelp } from '../../app/geeHelp.js';
-import { getVegSource, FIELD_SOURCES, indexOptions } from './veg_sources.js';
+import { getVegSource, FIELD_SOURCES, sourceIndex } from './veg_sources.js';
 import { getSoilSource } from './soil_sources.js';
 import { baseLayers } from './basemaps.js';
 import { gridShape, checkAoi } from './grid.js';
@@ -179,10 +179,9 @@ export function createSpatialTool(config) {
   gArea.body.append(ctrl('Start', startIn.el), ctrl('End', endIn.el));
 
   /* ── Sidebar: crop & vegetation index ───────────────────────────────── */
-  const indexSel = selectInput({ options: indexOptions(state.vegSource), value: indexOptions(state.vegSource)[0].value });
-  /* VI endpoints: bare soil ≈ 0.15, full canopy at 0.80 — a compromise that
-     serves EVI (which peaks ~0.7–0.9 over dense canopy) and NDVI alike. The
-     rescale clamps, so any VI ≥ the full-cover value saturates to Kcb max.
+  /* EVI endpoints: bare soil ≈ 0.15, full canopy at 0.80 (dense canopy peaks
+     ~0.7–0.9 and Landsat EVI can reach 1.0 on bright pixels). The rescale
+     clamps, so any VI ≥ the full-cover value saturates to Kcb max.
      After a run the VI summary under the map shows the field's own range. */
   const viSoilIn = numInput({ value: 0.15, min: -0.2, max: 1, step: 0.01 });
   const viFullIn = numInput({ value: 0.80, min: 0, max: 1, step: 0.01 });
@@ -193,7 +192,6 @@ export function createSpatialTool(config) {
   const hIn = numInput({ value: 1.5, min: 0.1, max: 4, step: 0.1 });
   const gCrop = group('Crop & vegetation index', { open: true });
   gCrop.body.append(
-    ctrl('Index', indexSel.el),
     ctrl('VI soil (→ Kcb min)', viSoilIn.el), ctrl('VI full cover (→ Kcb max)', viFullIn.el),
     ctrl('Kcb min', kcbMinIn.el), ctrl('Kcb max', kcbMaxIn.el),
     ctrl('Max root depth', zrIn.el, { unit: 'm' }),
@@ -239,27 +237,17 @@ export function createSpatialTool(config) {
   const gjInput = el('input', { type: 'file', accept: '.geojson,.json,application/geo+json', style: { display: 'none' }, onchange: onGeojson });
   const gjBtn = btn('Upload boundary (GeoJSON)', { small: true, onClick: () => gjInput.click() });
 
-  /* Grid-resolution selector: the tool's own list (Mesoscale: 500 m–4 km) or
-     the active source's (Sentinel-2: 10 / 30 m). A coarser grid is a mean of
-     the source pixels and trades detail for a smaller daily stack. Hidden when
-     only one resolution applies. resHint says which step fits the drawn field. */
-  const resList = () => config.resolutions || state.vegSource.resolutions || null;
-  const resMount = el('span', {});
-  const resHint = el('span', { class: 'hint' }, '');
-  const resRow = el('div', { class: 'row', style: { gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' } },
-    el('span', { class: 'hint' }, 'Grid resolution'), resMount, resHint);
-  function buildResSeg() {
-    const list = resList();
-    resMount.innerHTML = '';
-    resRow.hidden = !list || list.length < 2;
-    if (resRow.hidden) return;
-    resMount.append(segmented({
-      options: list.map((m) => ({ value: String(m), label: `${m} m` })),
-      value: String(state.scaleM),
-      onChange: (v) => { state.scaleM = +v; srcHint.textContent = srcText(); syncSize(); },
-    }).el);
-  }
-  buildResSeg();
+  /* Optional grid-resolution selector (Mesoscale: 500 m–4 km; a coarser grid
+     trades detail for area). Absent when config.resolutions is unset — Field
+     Scale sources each carry one resolution (e.g. Sentinel-2 at 10 m or 30 m
+     are two entries), so the choice is the Source dropdown itself. */
+  const resSeg = config.resolutions ? segmented({
+    options: config.resolutions.map((m) => ({ value: String(m), label: `${m} m` })),
+    value: String(state.scaleM),
+    onChange: (v) => { state.scaleM = +v; srcHint.textContent = srcText(); syncSize(); },
+  }) : null;
+  const resRow = resSeg ? el('div', { class: 'row', style: { gap: '0.5rem', alignItems: 'center' } },
+    el('span', { class: 'hint' }, 'Grid resolution'), resSeg.el) : null;
 
   wb.inputs.append(el('div', { class: 'stack' }, srcHint, resRow,
     el('div', { class: 'row', style: { gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' } }, drawHint, gjBtn, gjInput),
@@ -378,12 +366,9 @@ export function createSpatialTool(config) {
     cloudRow.hidden = !src.cloudFilter;
     /* A new dataset resets the resolution to its native scale (and the selector,
        if present, unless the native scale is one of the offered steps). */
-    const list = config.resolutions || src.resolutions;
-    state.scaleM = (list && list.includes(state.scaleM)) ? state.scaleM : src.scaleM;
-    buildResSeg();
+    state.scaleM = (config.resolutions && config.resolutions.includes(src.scaleM)) ? state.scaleM : src.scaleM;
+    if (resSeg && config.resolutions.includes(state.scaleM)) resSeg.set(String(state.scaleM));
     srcHint.textContent = srcText();
-    const opts = indexOptions(src);
-    indexSel.setOptions(opts, opts[0].value);
     syncSize();
   }
 
@@ -420,7 +405,6 @@ export function createSpatialTool(config) {
     const rect = currentRect();
     if (!rect) {
       sizeMetrics.update([]);
-      resHint.textContent = '';
       sizeWarn.innerHTML = '';
       sizeWarn.append(el('div', { class: 'hint' }, 'Draw a field boundary on the map to set the area.'));
       runBtn.disabled = true;
@@ -438,19 +422,9 @@ export function createSpatialTool(config) {
        large (surfaced in the run status). We only flag a large grid as a
        heads-up that it may be slow or rejected. A coarser resolution shrinks
        it when the tool offers one. */
-    /* Which resolution step fits this field: the finest one whose grid stays
-       under the heads-up threshold. */
-    const list = resList();
-    if (list && list.length > 1) {
-      const fine = Math.min(...list), coarse = Math.max(...list);
-      const nFine = checkAoi(rect, { scaleM: fine }).nPixels;
-      resHint.textContent = nFine > HINT_PIXELS
-        ? `${coarse} m recommended for this field (${nFine.toLocaleString()} pixels at ${fine} m)`
-        : `${fine} m fits this field (${nFine.toLocaleString()} pixels)`;
-    } else resHint.textContent = '';
     sizeWarn.innerHTML = '';
     if (big) {
-      const canCoarsen = list && state.scaleM !== Math.max(...list);
+      const canCoarsen = config.resolutions && state.scaleM !== Math.max(...config.resolutions);
       sizeWarn.append(callout('warn',
         `Large grid — ${chk.nPixels.toLocaleString()} pixels. This may take a while or exceed your Earth Engine limits; if it fails, EE’s message shows in the run status.${canCoarsen ? ' A coarser resolution reduces it.' : ''}`));
     }
@@ -545,7 +519,7 @@ export function createSpatialTool(config) {
       const gsz = gridShape(rect, state.scaleM);
       const data = await collectGrid(ee, {
         rect, cols: gsz.cols, rows: gsz.rows,
-        start, end, index: indexSel.get(),
+        start, end,
         vegSource: state.vegSource, soilSource: getSoilSource(state.vegSource.soil),
         weatherMode: state.vegSource.weather,
         maxCloud: cloudIn.get(),
@@ -559,7 +533,7 @@ export function createSpatialTool(config) {
         clipSoilToShape(data.soil, rect, gsz.cols, gsz.rows, data.rows, data.cols, state.fieldShape);
       }
 
-      showViSummary(data, indexSel.get());
+      showViSummary(data, sourceIndex(state.vegSource));
       setStatus('Building Kcb from vegetation index…');
       const { kcb } = buildKcbStack(data.obsDates, data.viStack, data.dates, {
         viMin: viSoilIn.get(), viMax: viFullIn.get(), kcbMin: kcbMinIn.get(), kcbMax: kcbMaxIn.get(),
