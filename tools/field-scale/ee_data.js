@@ -72,10 +72,10 @@ function crop2d(arr, rows, cols) {
  *     weatherStacks }           — spatial mode: per-pixel Float32 stacks
  *
  * params: { rect:{west,south,east,north}, cols, rows, start, end, index,
- *           soilSource, vegSource, weatherMode, maxViDates, onProgress }
+ *           soilSource, vegSource, weatherMode, maxViDates, maxCloud, onProgress }
  */
 export async function collectGrid(ee, params) {
-  const { rect, cols: targetCols, rows: targetRows, start, end, index, maxViDates = 40, onProgress } = params;
+  const { rect, cols: targetCols, rows: targetRows, start, end, index, maxViDates = 600, onProgress } = params;
   const soilSrc = params.soilSource;
   const say = (m) => onProgress && onProgress(m);
   const eeRect = ee.Geometry.Rectangle([rect.west, rect.south, rect.east, rect.north], null, false);
@@ -127,8 +127,15 @@ export async function collectGrid(ee, params) {
   say(`Finding ${src.label} observation dates…`);
   const selBands = src.qa ? [viBandName, src.qa.band] : [viBandName];
   const selNames = src.qa ? ['VI', 'QA'] : ['VI'];
-  const coll = ee.ImageCollection(src.collection).filterDate(start, endExcl).filterBounds(eeRect).select(selBands, selNames);
-  const viProj = coarse ? aggProj(src.nativeM || src.scaleM) : null;
+  /* A source with build() computes the index and applies its cloud mask
+     server-side and hands back a collection carrying the index band(s). */
+  const coll = src.build
+    ? src.build(ee, { start, endExcl, region: eeRect, maxCloud: params.maxCloud ?? 100 }).select([viBandName], ['VI'])
+    : ee.ImageCollection(src.collection).filterDate(start, endExcl).filterBounds(eeRect).select(selBands, selNames);
+  /* Mean-aggregate whenever the grid is clearly coarser than the source (a 30 m
+     grid from 10 m Sentinel-2 as much as a 4 km grid from VIIRS). */
+  const viNative = src.nativeM || src.scaleM;
+  const viProj = (coarse || cellM > viNative * 1.5) ? aggProj(viNative) : null;
 
   const stamps = await new Promise((res, rej) =>
     coll.aggregate_array('system:time_start').getInfo((d, e) => (e ? rej(new Error(e)) : res(d || []))));
@@ -138,18 +145,32 @@ export async function collectGrid(ee, params) {
     datesAll = Array.from({ length: maxViDates }, (_, i) => datesAll[Math.floor(i * step)]);
   }
 
+  /* Sample the dates in batches: one multi-band image (VI_k / QA_k per date)
+     per sampleRectangle call, sized so pixels × bands stays under EE's sample
+     limit (~262k values). A 5-year Landsat 8-day record (~230 composites) over
+     a 13k-pixel field is then ~15 requests instead of 230, so every composite
+     can be used — a sparse subsample (the old 40-date cap) let one cloudy
+     composite rule the Kcb of a whole season. */
+  const nPix = rows * cols;
+  const perDate = src.qa ? 2 : 1;
+  const batch = Math.max(1, Math.min(16, Math.floor(262144 / (nPix * perDate))));
   const obsDates = [];
   const viStack = [];
-  for (let i = 0; i < datesAll.length; i++) {
-    const d = datesAll[i];
-    say(`Sampling ${index.toUpperCase()} ${d} (${i + 1}/${datesAll.length})…`);
-    const day = coll.filterDate(d, addDaysISO(d, 1)).mosaic();
-    const props = await sampleRect(ee, day, eeRect, transform, viProj);
-    if (!props.VI) continue;
-    const viG = flattenGrid(crop2d(props.VI, rows, cols)).data;
-    const qaG = src.qa ? flattenGrid(crop2d(props.QA, rows, cols)).data : null;
-    const vi = viFromBands(viG, qaG, src.qa ? src.qa.max : 1, src.scaleFactor);
-    if (vi.some((v) => Number.isFinite(v))) { obsDates.push(d); viStack.push(vi); }
+  for (let i = 0; i < datesAll.length; i += batch) {
+    const chunk = datesAll.slice(i, i + batch);
+    const upto = Math.min(i + batch, datesAll.length);
+    say(`Sampling ${index.toUpperCase()} ${chunk[0]} … ${chunk[chunk.length - 1]} (${upto}/${datesAll.length})…`);
+    const imgs = chunk.map((d, k) =>
+      coll.filterDate(d, addDaysISO(d, 1)).mosaic().rename(selNames.map((n) => `${n}_${k}`)));
+    const props = await sampleRect(ee, ee.Image.cat(imgs), eeRect, transform, viProj);
+    for (let k = 0; k < chunk.length; k++) {
+      const viRaw = props[`VI_${k}`];
+      if (!viRaw) continue;
+      const viG = flattenGrid(crop2d(viRaw, rows, cols)).data;
+      const qaG = src.qa ? flattenGrid(crop2d(props[`QA_${k}`], rows, cols)).data : null;
+      const vi = viFromBands(viG, qaG, src.qa ? src.qa.max : 1, src.scaleFactor);
+      if (vi.some((v) => Number.isFinite(v))) { obsDates.push(chunk[k]); viStack.push(vi); }
+    }
   }
   if (!obsDates.length) throw new Error(`No clear ${src.label} observations in this area/period. Widen the dates.`);
 

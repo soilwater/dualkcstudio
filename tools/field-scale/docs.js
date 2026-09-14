@@ -27,11 +27,20 @@ runs. For larger areas use the Mesoscale tool.</p>
 <h3>Data sources</h3>
 <table>
   <tr><th>layer</th><th>source</th></tr>
-  <tr><td>Canopy</td><td><strong>Landsat 8-day EVI</strong> (30 m, cloud-free
-      composite). Each clear observation is linearly rescaled to Kcb between a
-      bare-soil endpoint (EVI 0.15 → Kcb min) and a full-cover endpoint (EVI
-      0.70 → Kcb max), then interpolated to daily values per pixel; beyond the
-      first and last observation the nearest value is held.</td></tr>
+  <tr><td>Canopy</td><td><strong>Sentinel-2 EVI or NDVI</strong> (10 m native,
+      2019 on, 5-day revisit), computed from harmonized L2A surface reflectance.
+      Scenes above the chosen cloud-cover tolerance are skipped whole; inside the
+      kept scenes the Cloud Score+ mask removes residual cloud, shadow and haze
+      pixels, and a masked pixel simply skips that date in its own Kcb
+      interpolation. Run at 10 m for small fields or 30 m (mean of the 10 m
+      pixels) for larger ones. <strong>Landsat 8/9 EVI</strong> (30 m, 2013 on,
+      QA_PIXEL mask) is offered for earlier periods. Each clear observation is
+      linearly rescaled to Kcb between a bare-soil endpoint (VI 0.15 → Kcb min)
+      and a full-cover endpoint (VI 0.80 → Kcb max), then interpolated to daily
+      values per pixel; beyond the first and last observation the nearest value
+      is held. After a run the index range over the field (extremes and 5th /
+      95th percentiles) is shown under the map to help tune both endpoints;
+      negative values are water or shadow, not bare soil.</td></tr>
   <tr><td>Soil</td><td><strong>POLARIS</strong> (30 m, CONUS): sand, clay and
       organic matter → field capacity &amp; wilting point via the Saxton &amp;
       Rawls (2006) pedotransfer functions. The <strong>surface</strong>
