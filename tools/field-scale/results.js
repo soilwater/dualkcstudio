@@ -164,6 +164,8 @@ export function createResults() {
   const pixDr = el('div', { class: 'chart-card__plot', style: { height: '190px' } });
   const pixKc = el('div', { class: 'chart-card__plot', style: { height: '190px' } });
   const pixDivs = [pixEt, pixDr, pixKc];
+  /* One line from the run: the field's VI percentile range, set by the tool. */
+  const viNote = el('div', { class: 'hint', hidden: true });
 
   const root = el('div', { class: 'stack' },
     el('div', { class: 'row row--wrap', style: { gap: '1.2rem', alignItems: 'center' } },
@@ -175,6 +177,7 @@ export function createResults() {
     el('div', { class: 'card chart-card chart-card--wide' },
       el('div', { class: 'chart-card__head' }, el('div', { class: 'chart-card__title' }, 'Map'), el('div', { class: 'chart-card__sub' }, 'satellite basemap · click a pixel')),
       mapEl),
+    viNote,
     el('div', { class: 'card chart-card chart-card--wide' },
       el('div', { class: 'chart-card__head' }, pixHead, el('div', { class: 'chart-card__sub' }, 'daily series at the clicked pixel')),
       pixEt, pixDr, pixKc),
@@ -288,11 +291,13 @@ export function createResults() {
   function panel(div, traces, yTitle, extra = {}) {
     const layout = {
       paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
-      margin: { l: 48, r: 46, t: 6, b: 22 }, hovermode: 'x unified', bargap: 0.2,
+      /* Top margin reserves a band for the legend so it never overlaps the
+         traces (the precip bars hang from the top of the plot). */
+      margin: { l: 48, r: 46, t: 30, b: 22 }, hovermode: 'x unified', bargap: 0.2,
       font: { family: 'Inter, sans-serif', size: 11, color: VIZ.ink2 },
       xaxis: { gridcolor: VIZ.grid, tickfont: { size: 10, color: VIZ.muted } },
       yaxis: { title: yTitle, gridcolor: VIZ.grid, rangemode: 'tozero', tickfont: { size: 10, color: VIZ.muted }, titlefont: { size: 11, color: VIZ.ink2 } },
-      legend: { orientation: 'h', y: 1.12, font: { size: 10.5, color: VIZ.ink2 } }, showlegend: true,
+      legend: { orientation: 'h', x: 0, xanchor: 'left', y: 1.02, yanchor: 'bottom', font: { size: 10.5, color: VIZ.ink2 } }, showlegend: true,
       ...extra,
     };
     /* No `responsive` — Plotly's global resize handler throws on a hidden plot
@@ -535,5 +540,7 @@ export function createResults() {
     if (selPixel && window.Plotly) pixDivs.forEach((d) => { if (d._fullLayout && d.clientWidth > 0 && d.clientHeight > 0) window.Plotly.Plots.resize(d); });
   }
 
-  return { el: root, setData, resize };
+  function setViNote(text) { viNote.textContent = text || ''; viNote.hidden = !text; }
+
+  return { el: root, setData, resize, setViNote };
 }

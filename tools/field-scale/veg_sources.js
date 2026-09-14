@@ -30,6 +30,12 @@
  *   soil         — id of the paired soil source (soil_sources.js)
  */
 
+/* EVI's denominator (NIR + 6 RED − 7.5 BLUE + 1) can approach zero over water,
+   deep shadow and cloud edges, throwing values like −90 or +17. EVI is defined
+   on [−1, 1]; anything outside is a numerical artefact, not vegetation, and is
+   masked like a cloud. */
+const inRange = (evi) => evi.gte(-1).and(evi.lte(1));
+
 /**
  * Landsat 8/9 Collection 2 Level 2 surface reflectance → EVI, cloud-masked.
  *   scenes    : LC08 + LC09 T1_L2, scene CLOUD_COVER ≤ maxCloud (%)
@@ -48,7 +54,7 @@ function buildLandsatSrEvi(ee, { start, endExcl, region, maxCloud }) {
     const evi = sr.expression('2.5 * (N - R) / (N + 6 * R - 7.5 * B + 1)', {
       N: sr.select('SR_B5'), R: sr.select('SR_B4'), B: sr.select('SR_B2'),
     }).rename('EVI');
-    return ee.Image(evi.updateMask(clear).copyProperties(img, ['system:time_start']));
+    return ee.Image(evi.updateMask(clear.and(inRange(evi))).copyProperties(img, ['system:time_start']));
   };
   const one = (id) => ee.ImageCollection(id)
     .filterDate(start, endExcl).filterBounds(region)
@@ -71,7 +77,7 @@ function buildSentinel2(ee, { start, endExcl, region, maxCloud }) {
     const sr = img.select(['B2', 'B4', 'B8']).multiply(1e-4);
     const N = sr.select('B8'), R = sr.select('B4'), B = sr.select('B2');
     const evi = sr.expression('2.5 * (N - R) / (N + 6 * R - 7.5 * B + 1)', { N, R, B }).rename('EVI');
-    const clear = img.select('cs_cdf').gte(CS_CLEAR);
+    const clear = img.select('cs_cdf').gte(CS_CLEAR).and(inRange(evi));
     return ee.Image(evi.updateMask(clear).copyProperties(img, ['system:time_start']));
   };
   return ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')

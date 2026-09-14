@@ -226,11 +226,6 @@ export function createSpatialTool(config) {
   const mapEl = el('div', { style: { height: '460px', width: '100%', borderRadius: 'var(--radius)', overflow: 'hidden', background: 'var(--panel-2)', position: 'relative', zIndex: '0', isolation: 'isolate' } });
   const sizeMetrics = metricsBar([]);
   const sizeWarn = el('div', {});
-  /* After a run: the range of the vegetation index over every clear pixel-
-     observation inside the field, to guide the soil / full-cover endpoints. */
-  const viMetrics = metricsBar([]);
-  const viNote = el('div', { class: 'hint' });
-  const viBox = el('div', { class: 'stack', hidden: true }, viMetrics.el, viNote);
   const srcText = () => `${state.vegSource.label} · ${state.scaleM} m grid`;
   const srcHint = el('div', { class: 'hint' }, srcText());
   const drawHint = el('div', { class: 'hint' }, 'Trace the boundary with the draw tools (top-left of the map), or upload a GeoJSON.');
@@ -251,7 +246,7 @@ export function createSpatialTool(config) {
 
   wb.inputs.append(el('div', { class: 'stack' }, srcHint, resRow,
     el('div', { class: 'row', style: { gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' } }, drawHint, gjBtn, gjInput),
-    mapEl, sizeMetrics.el, sizeWarn, viBox));
+    mapEl, sizeMetrics.el, sizeWarn));
 
   /* ── Canvas: Results ────────────────────────────────────────────────── */
   const results = createResults();
@@ -372,33 +367,21 @@ export function createSpatialTool(config) {
     syncSize();
   }
 
-  /* Percentiles of the VI over all clear observations of pixels that have
-     soil (i.e. inside the drawn field). Water and deep shadow give negative
-     VI, so the extremes are shown alongside the 5th / 95th percentiles, which
-     are the better guide for the endpoints. */
-  function showViSummary(data, index) {
+  /* One line under the results map: the 5th–95th percentile range of the VI
+     over every clear observation of pixels inside the drawn field, as a guide
+     for the soil / full-cover endpoints (the extremes are water and shadow). */
+  function viSummaryLine(data, index) {
     const inField = data.soil.rootzone_fc;
     let n = 0;
     for (const vi of data.viStack) for (let p = 0; p < vi.length; p++) if (Number.isFinite(vi[p]) && Number.isFinite(inField[p])) n++;
-    if (!n) { viBox.hidden = true; return; }
+    if (!n) return '';
     const all = new Float32Array(n);
     let i = 0;
     for (const vi of data.viStack) for (let p = 0; p < vi.length; p++) if (Number.isFinite(vi[p]) && Number.isFinite(inField[p])) all[i++] = vi[p];
     all.sort();
-    const q = (f) => all[Math.min(n - 1, Math.round(f * (n - 1)))];
-    const name = index.toUpperCase();
-    viMetrics.update([
-      { label: `${name} min`, value: all[0], digits: 2 },
-      { label: '5th pct', value: q(0.05), digits: 2 },
-      { label: 'Median', value: q(0.5), digits: 2 },
-      { label: '95th pct', value: q(0.95), digits: 2 },
-      { label: `${name} max`, value: all[n - 1], digits: 2 },
-      { label: 'Clear obs', value: n },
-    ]);
-    viNote.textContent = `${name} over every clear pixel-observation inside the field (${data.nViDates} dates). ` +
-      'Negative or near-zero values are water, shadow or snow rather than bare soil, so use the 5th and 95th ' +
-      'percentiles, not the extremes, when setting the VI soil and full-cover endpoints.';
-    viBox.hidden = false;
+    const q = (f) => all[Math.min(n - 1, Math.round(f * (n - 1)))].toFixed(2);
+    return `${index.toUpperCase()} 5th–95th percentile over the field: ${q(0.05)} – ${q(0.95)} ` +
+      `(${n.toLocaleString()} clear pixel observations on ${data.nViDates} dates). This is a guide for the soil and full-cover endpoints.`;
   }
 
   function syncSize() {
@@ -533,7 +516,7 @@ export function createSpatialTool(config) {
         clipSoilToShape(data.soil, rect, gsz.cols, gsz.rows, data.rows, data.cols, state.fieldShape);
       }
 
-      showViSummary(data, sourceIndex(state.vegSource));
+      results.setViNote(viSummaryLine(data, sourceIndex(state.vegSource)));
       setStatus('Building Kcb from vegetation index…');
       const { kcb } = buildKcbStack(data.obsDates, data.viStack, data.dates, {
         viMin: viSoilIn.get(), viMax: viFullIn.get(), kcbMin: kcbMinIn.get(), kcbMax: kcbMaxIn.get(),
