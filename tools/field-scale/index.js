@@ -26,6 +26,7 @@ export default createSpatialTool({
   getVegSource,
   soilSources: SOIL_SOURCES_LIST,
   getSoilSource,
+  soilAdjust: true,          /* FC/WP calibration offsets in the Soil group */
   weatherSources: WEATHER_SOURCES_LIST,
   getWeatherSource,
   collectGrid,

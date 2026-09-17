@@ -158,12 +158,14 @@ export function createResults() {
 
   const mapEl = el('div', { style: { height: '460px', width: '100%', borderRadius: 'var(--radius)', overflow: 'hidden', background: 'var(--panel-2)', position: 'relative', zIndex: '0', isolation: 'isolate' } });
   const pixHead = el('div', { class: 'chart-card__title' }, 'Click a pixel');
-  /* Three stacked pixel time-series, in agronomic order: demand (ETo/ETc),
-     water (Dr/precip), then crop coefficients (Kcb, Kcb+Ke). */
+  /* Four stacked pixel time-series, in agronomic order: demand (ETo/ETc),
+     water (Dr/precip), crop coefficients (Kcb, Kcb+Ke), then water stress
+     (fraction of available water, the 1−p threshold, and Ks). */
   const pixEt = el('div', { class: 'chart-card__plot', style: { height: '190px' } });
   const pixDr = el('div', { class: 'chart-card__plot', style: { height: '190px' } });
   const pixKc = el('div', { class: 'chart-card__plot', style: { height: '190px' } });
-  const pixDivs = [pixEt, pixDr, pixKc];
+  const pixStress = el('div', { class: 'chart-card__plot', style: { height: '190px' } });
+  const pixDivs = [pixEt, pixDr, pixKc, pixStress];
   /* One line from the run: the field's VI percentile range, set by the tool. */
   const viNote = el('div', { class: 'hint', hidden: true });
 
@@ -180,7 +182,7 @@ export function createResults() {
     viNote,
     el('div', { class: 'card chart-card chart-card--wide' },
       el('div', { class: 'chart-card__head' }, pixHead, el('div', { class: 'chart-card__sub' }, 'daily series at the clicked pixel')),
-      pixEt, pixDr, pixKc),
+      pixEt, pixDr, pixKc, pixStress),
   );
 
   function dayText() { return R ? `${R.dates[curDay]}  (day ${curDay + 1}/${R.T})` : '—'; }
@@ -319,6 +321,7 @@ export function createResults() {
     const eto = ser('ETo') || (weather ? weather.map((w) => w.ETo) : null);
     const prcp = ser('Precip') || (weather ? weather.map((w) => w.prcp) : null);
     const etc = ser('ETc'), aw = ser('Sr_paw'), kcb = ser('Kcb'), ke = ser('Ke');
+    const dr = ser('Dr'), taw = ser('TAW'), pUsed = ser('p_used'), ks = ser('Ks');
 
     /* 1 — ETo (demand) and ETc (actual crop ET), both mm/day. */
     const t1 = [];
@@ -340,6 +343,18 @@ export function createResults() {
     if (kcb) t3.push({ x: dates, y: kcb, name: 'Kcb', line: { color: VIZ.kcb, width: 1.6 } });
     if (kcb && ke) t3.push({ x: dates, y: kcb.map((v, i) => v + (ke[i] || 0)), name: 'Kcb + Ke', line: { color: VIZ.kc, width: 1.3 } });
     panel(pixKc, t3, 'Kc (–)');
+
+    /* 4 — water stress: fraction of available water in the root zone
+       (1 − Dr/TAW; 1 = field capacity, 0 = fully depleted to the wilting point),
+       the stress-onset threshold (1 − p, below which Ks < 1), and Ks itself. All
+       dimensionless on [0, 1]. */
+    const t4 = [];
+    const faw = (dr && taw) ? dr.map((d, i) => (taw[i] > 0 ? Math.max(0, 1 - d / taw[i]) : NaN)) : null;
+    const thr = pUsed ? pUsed.map((v) => (Number.isFinite(v) ? 1 - v : NaN)) : null;
+    if (faw) t4.push({ x: dates, y: faw, name: 'Avail. water fraction', line: { color: VIZ.storage, width: 1.6 } });
+    if (thr) t4.push({ x: dates, y: thr, name: 'Stress threshold (1−p)', line: { color: VIZ.muted, width: 1.1, dash: 'dash' } });
+    if (ks) t4.push({ x: dates, y: ks, name: 'Ks', line: { color: VIZ.stress, width: 1.3 } });
+    panel(pixStress, t4, 'Fraction (–)');
 
     linkZoom(pixDivs);
   }

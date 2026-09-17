@@ -100,6 +100,29 @@ function maskDailyToValid(stack, validMask, T, nPixels) {
   return stack;
 }
 
+/**
+ * Add a constant calibration offset (volumetric, m³/m³) to every finite pixel's
+ * field capacity and wilting point, keeping the product's spatial variability
+ * while shifting the level to match local lab/field measurements. Both the
+ * surface (Ze) and root-zone limits are shifted so the two stay consistent.
+ * Wilting point is clamped below field capacity (min 0.01 gap) so TAW stays
+ * positive; both are clamped to [0, 0.6] m³/m³. 0/0 is a no-op.
+ */
+function offsetSoil(soil, dFc, dWp) {
+  if (!dFc && !dWp) return;
+  const clamp = (v) => Math.min(0.6, Math.max(0, v));
+  for (let p = 0; p < soil.rootzone_fc.length; p++) {
+    for (const d of ['rootzone', 'surface']) {
+      const fcK = `${d}_fc`, wpK = `${d}_wp`;
+      if (!Number.isFinite(soil[fcK][p])) continue;
+      const fc = clamp(soil[fcK][p] + dFc);
+      const wp = Math.min(clamp(soil[wpK][p] + dWp), fc - 0.01);
+      soil[fcK][p] = fc;
+      soil[wpK][p] = Math.max(0, wp);
+    }
+  }
+}
+
 /** Ray-casting point-in-polygon on [lng,lat] pairs (planar; fine at field scale). */
 function pointInRing(x, y, ring) {
   let inside = false;
@@ -184,6 +207,21 @@ export function createSpatialTool(config) {
     gSoil.body.append(ctrl('Source', soilSel.el), soilNote);
   }
 
+  /* Optional calibration offsets: shift every pixel's field capacity and wilting
+     point by a constant (volumetric, m³/m³) to align the product with local
+     lab/field measurements while keeping its spatial variability. 0 = product
+     as-is. Enabled per tool via config.soilAdjust (Field Scale). */
+  const fcOffIn = numInput({ value: 0, min: -0.15, max: 0.15, step: 0.01 });
+  const wpOffIn = numInput({ value: 0, min: -0.15, max: 0.15, step: 0.01 });
+  if (config.soilAdjust) {
+    if (!gSoil) gSoil = group('Soil', { open: true });
+    gSoil.body.append(
+      el('div', { class: 'hint', style: { marginTop: '0.55rem', lineHeight: '1.4' } }, 'Calibration offsets — added to every pixel to match local lab/field data, keeping the map’s variability. 0 = product as-is.'),
+      ctrl('Field capacity offset', fcOffIn.el, { unit: 'm³/m³' }),
+      ctrl('Wilting point offset', wpOffIn.el, { unit: 'm³/m³' }),
+    );
+  }
+
   /* ── Sidebar: region boundary ───────────────────────────────────────────
      Load a county / state / ASD from assets/ as the AOI, instead of drawing.
      Only offered when a tool opts in with config.boundaryLevels (Mesoscale) —
@@ -234,6 +272,7 @@ export function createSpatialTool(config) {
   /* ── Sidebar: management ────────────────────────────────────────────── */
   const fawIn = numInput({ value: 70, min: 0, max: 100, step: 5 });
   const cnIn = numInput({ value: 78, min: 30, max: 98, step: 1 });
+  const residueIn = numInput({ value: 0, min: 0, max: 100, step: 5 });
   const irrigSel = selectInput({ options: [{ value: 'rainfed', label: 'Rainfed' }, { value: 'auto', label: 'Auto (MAD trigger)' }], value: 'rainfed', onChange: (v) => { autoRow.hidden = v !== 'auto'; } });
   const madIn = numInput({ value: 0.5, min: 0.2, max: 0.8, step: 0.05 });
   const amtIn = numInput({ value: 25, min: 5, max: 75, step: 5 });
@@ -244,6 +283,7 @@ export function createSpatialTool(config) {
   gMgmt.body.append(
     ctrl('Initial available water', fawIn.el, { unit: '%' }),
     ctrl('Curve number', cnIn.el),
+    ctrl('Residue cover', residueIn.el, { unit: '%', help: 'Crop residue / mulch fraction of the surface. Reduces soil evaporation by shrinking the evaporable water (FAO-56 TEW/REW). 0 = bare soil.' }),
     ctrl('Irrigation', irrigSel.el), autoRow,
   );
 
@@ -565,6 +605,10 @@ export function createSpatialTool(config) {
         clipSoilToShape(data.soil, rect, gsz.cols, gsz.rows, data.rows, data.cols, state.fieldShape);
       }
 
+      /* Calibration: shift FC/WP by the user's constant offsets before the run
+         (no-op when both are 0). Keeps the product's variability. */
+      offsetSoil(data.soil, fcOffIn.get() || 0, wpOffIn.get() || 0);
+
       results.setViNote(viSummaryLine(data, sourceIndex(state.vegSource)));
       setStatus('Building Kcb from vegetation index…');
       const { kcb } = buildKcbStack(data.obsDates, data.viStack, data.dates, {
@@ -574,7 +618,7 @@ export function createSpatialTool(config) {
       const grid = { cols: data.cols, rows: data.rows, nPixels: data.cols * data.rows };
       const scalars = { Ze: 0.10, REW_frac: 0.5, Zr_profile: Math.max(2.0, zrMax + 0.3), faw0: fawIn.get() / 100 };
       const crop = { Zr_max: zrMax, h_max: hIn.get(), Kcb_full: kcbMaxIn.get(), p_tab: pIn.get(), Kc_min: 0.15 };
-      const mgmt = { curve_number: cnIn.get(), irrigation_mode: irrigSel.get(), mad: madIn.get(), irrig_amount: amtIn.get() };
+      const mgmt = { curve_number: cnIn.get(), irrigation_mode: irrigSel.get(), mad: madIn.get(), irrig_amount: amtIn.get(), residue_cover: (residueIn.get() || 0) / 100 };
 
       setStatus(`Running model on ${grid.nPixels} pixels…`);
       /* Let the status paint before the synchronous single-thread run. */

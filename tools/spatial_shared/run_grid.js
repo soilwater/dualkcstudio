@@ -17,8 +17,10 @@
 import { runModel } from '../../core/engine.js';
 
 /* Daily grids kept for the day-slider map (nPixels * T * 4 bytes each). Ke
-   feeds the Kcb+Ke pixel plot; Sr_paw is root-zone plant-available water (mm). */
-export const DEFAULT_DAILY_VARS = ['Kcb', 'Ke', 'Dr', 'Sr_paw', 'ETc', 'Ks'];
+   feeds the Kcb+Ke pixel plot; Sr_paw is root-zone plant-available water (mm).
+   Dr / TAW / p_used feed the per-pixel water-stress plot (fraction of available
+   water = 1 − Dr/TAW, stress threshold = 1 − p_used) alongside Ks. */
+export const DEFAULT_DAILY_VARS = ['Kcb', 'Ke', 'Dr', 'TAW', 'p_used', 'Sr_paw', 'ETc', 'Ks'];
 
 /**
  * Run the grid.
