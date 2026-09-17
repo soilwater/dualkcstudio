@@ -17,6 +17,7 @@ export {
   resolveKcbFn,
   kcbArray,
   rootDepthArray,
+  rootDepthFromKcb,
   canopyHeightArray,
   fcFromKcb,
   kcMax,

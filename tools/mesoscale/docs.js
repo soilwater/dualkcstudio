@@ -10,7 +10,9 @@ export const DOCS = {
 4 km grid</strong> for <strong>large watersheds and regional-scale</strong> work
 (up to 250,000 km²). Trace the area with the draw tools or upload a GeoJSON
 boundary, pick a season, sign in to Google Earth Engine, and the tool pulls
-soil, canopy, and weather onto the 4 km grid.</p>
+soil, canopy, and weather onto the 4 km grid. Runs are rainfed by design: one
+irrigation schedule over a whole region is meaningless, and Kcb is fixed by the
+satellite, so simulated irrigation could not feed back on the canopy.</p>
 
 <h3>Signing in and choosing the area</h3>
 <p>Click <strong>Sign in with Google</strong> with an account that has Earth

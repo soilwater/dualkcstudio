@@ -250,18 +250,17 @@ export function createSpatialTool(config) {
   const fawIn = numInput({ value: 70, min: 0, max: 100, step: 5 });
   const cnIn = numInput({ value: 78, min: 30, max: 98, step: 1 });
   const residueIn = numInput({ value: 0, min: 0, max: 100, step: 5 });
-  const irrigSel = selectInput({ options: [{ value: 'rainfed', label: 'Rainfed' }, { value: 'auto', label: 'Auto (MAD trigger)' }], value: 'rainfed', onChange: (v) => { autoRow.hidden = v !== 'auto'; } });
-  const madIn = numInput({ value: 0.5, min: 0.2, max: 0.8, step: 0.05 });
-  const amtIn = numInput({ value: 25, min: 5, max: 75, step: 5 });
-  const autoRow = el('div', {}, ctrl('MAD trigger', madIn.el),
-    ctrl('Irrigation amount', amtIn.el, { unit: 'mm', help: 'Per event the model applies min(this amount, depth needed to refill the root zone to field capacity).' }));
-  autoRow.hidden = true;
+  /* No irrigation control, by design. Kcb here is fixed by the satellite, so a
+     simulated irrigation cannot feed back on the canopy the way it would in the
+     field (irrigating today does not change tomorrow's observed Kcb), and at
+     mesoscale a single schedule over a whole region is meaningless. Spatial
+     runs are rainfed; irrigation questions belong in Single Season. Actual
+     irrigation still shows up implicitly, through the observed Kcb. */
   const gMgmt = group('Management', { open: false });
   gMgmt.body.append(
     ctrl('Initial available water', fawIn.el, { unit: '%' }),
     ctrl('Curve number', cnIn.el),
-    ctrl('Residue cover', residueIn.el, { unit: '%', help: 'Crop residue / mulch fraction of the surface. Reduces soil evaporation by shrinking the evaporable water (FAO-56 TEW/REW). 0 = bare soil.' }),
-    ctrl('Irrigation', irrigSel.el), autoRow,
+    ctrl('Residue cover', residueIn.el, { unit: '%', help: 'Crop residue / mulch fraction of the surface. Reduces soil evaporation by 5% per 10% of surface covered (FAO-56 Ch. 10, organic mulches). 0 = bare soil.' }),
   );
 
   /* Order: connect (Earth Engine) → when (Period) → where (Region, mesoscale)
@@ -606,7 +605,7 @@ export function createSpatialTool(config) {
       const grid = { cols: data.cols, rows: data.rows, nPixels: data.cols * data.rows };
       const scalars = { Ze: 0.10, REW_frac: 0.5, Zr_profile: Math.max(2.0, zrMax + 0.3), faw0: fawIn.get() / 100 };
       const crop = { Zr_max: zrMax, h_max: hIn.get(), Kcb_full: kcbMaxIn.get(), p_tab: pIn.get(), Kc_min: 0.15 };
-      const mgmt = { curve_number: cnIn.get(), irrigation_mode: irrigSel.get(), mad: madIn.get(), irrig_amount: amtIn.get(), residue_cover: (residueIn.get() || 0) / 100 };
+      const mgmt = { curve_number: cnIn.get(), irrigation_mode: 'rainfed', residue_cover: (residueIn.get() || 0) / 100 };
 
       setStatus(`Running model on ${grid.nPixels} pixels…`);
       /* Let the status paint before the synchronous single-thread run. */

@@ -6,7 +6,7 @@
  * date arithmetic or interpolation of its own.
  */
 
-import { toUtcTimestamp } from './dateUtils.js';
+import { toUtcTimestamp, parseUtcParts } from './dateUtils.js';
 
 export const REQUIRED_COLS = ['date', 'tmin', 'tmax', 'rmin', 'rmax', 'srad', 'wspd', 'prcp'];
 export const INTERP_VARS = ['tmin', 'tmax', 'rmin', 'rmax', 'srad', 'wspd'];
@@ -261,7 +261,9 @@ function missingReport(df) {
 }
 
 export function recordSummary(df) {
-  const years = Array.from(new Set(df.map(r => new Date(r.date).getFullYear()))).sort((a, b) => a - b);
+  // parseUtcParts, not new Date(str).getFullYear(): a 'YYYY-MM-DD' string parses
+  // as UTC midnight, which is still Dec 31 of the PREVIOUS year in US time zones.
+  const years = Array.from(new Set(df.map(r => parseUtcParts(r.date).year))).sort((a, b) => a - b);
   return {
     n_days: df.length,
     n_years: years.length,

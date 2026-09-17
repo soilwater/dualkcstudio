@@ -20,6 +20,9 @@
 import { toUtcTimestamp, parseUtcParts } from '../../core/index.js';
 import { makeCropBlock, makeFallowBlock, runRotation, TERMINATION_RAMP_DAYS } from '../rotation/blocks.js';
 
+/* Residue cover (%) of the "no cover crop" baseline fallow. */
+export const BASELINE_RESIDUE_PCT = 90;
+
 function pad2(n) { return String(n).padStart(2, '0'); }
 
 /** Next date on/after `fromIso` with the given calendar month (1–12) / day. */
@@ -74,7 +77,10 @@ export function runOneOccurrence({ weatherDf, occurrence, isBaseline, cropPreset
 
   let blocks;
   if (isBaseline) {
-    blocks = [makeFallowBlock({ name: 'No cover crop', duration: coverDays + fallowDays, residue_pct: 0, CN: fallowCN })];
+    /* The no-cover baseline is a no-till fallow sitting under the previous
+       cash crop's residue, not bare tilled soil — comparing a cover crop
+       against 0% residue would flatter the cover crop. */
+    blocks = [makeFallowBlock({ name: 'No cover crop', duration: coverDays + fallowDays, residue_pct: BASELINE_RESIDUE_PCT, CN: fallowCN })];
   } else {
     /* The termination ramp (TERMINATION_RAMP_DAYS) is spent inside the crop
        block itself; the fallow block only needs to cover whatever's left of

@@ -6,7 +6,7 @@
  * weather. Outputs tab: the comparison dashboard.
  */
 
-import { CROPS } from '../../core/cropSettings.js';
+import { CROPS, FALLOW_PRESET } from '../../core/cropSettings.js';
 import { toUtcTimestamp } from '../../core/index.js';
 import { el, clear } from '../../ui/dom.js';
 import { MONTH_NAMES } from '../../ui/format.js';
@@ -68,9 +68,9 @@ function create() {
      cash crop planted early May. */
   const coverIn = monthDayInput({ value: '09-25', onChange: () => syncHints() });
   const cashIn = monthDayInput({ value: '05-05', onChange: () => syncHints() });
-  const baselineCheck = checkbox({ label: 'Include "no cover crop" baseline', checked: true, onChange: () => syncHints() });
+  const baselineCheck = checkbox({ label: 'Include "no cover crop" baseline (fallow, 90% residue)', checked: true, onChange: () => syncHints() });
   const residueIn = numInput({ value: 50, min: 0, max: 100, step: 5, onChange: () => syncHints() });
-  const cnIn = numInput({ value: 91, min: 30, max: 98, step: 1, onChange: () => syncHints() });
+  const cnIn = numInput({ value: FALLOW_PRESET.CN, min: 30, max: 98, step: 1, onChange: () => syncHints() });
 
   let scenarioDates = ['03-15', '04-15'];
   const scenarioListEl = el('div', {});

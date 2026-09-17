@@ -56,15 +56,20 @@ interpolated between observations). Short interior gaps in <code class="var">eto
 <table>
   <tr><th>mode</th><th>behaviour</th></tr>
   <tr><td>Rainfed</td><td>no irrigation, the CSV's irrig column is ignored</td></tr>
-  <tr><td>Data</td><td>applies the CSV's <code class="var">irrig</code> column as-is</td></tr>
+  <tr><td>Data</td><td>applies the CSV's <code class="var">irrig</code> column as the
+      gross applied depth; the method (wetted fraction) and efficiency still apply</td></tr>
   <tr><td>Auto</td><td>irrigates when root-zone depletion reaches the MAD
-      fraction of TAW, refilling up to the event amount</td></tr>
+      fraction of TAW, applying the gross depth needed to refill the root zone
+      (depletion ÷ efficiency) up to the event amount. Only while a crop is
+      present (Kcb above Kc min, so not during a flat initial stage) and never
+      past 80% of the growing season. To test pre-season or bare-soil irrigation,
+      use the Data or Interval mode</td></tr>
   <tr><td>Interval</td><td>a fixed amount every N days</td></tr>
 </table>
 <p>The wetted fraction fw comes from the method (sprinkler 1.0, furrow 0.7,
 drip 0.35); efficiency scales gross to net water; the optional season
 allocation caps total applied irrigation.</p>
-<p><strong>Surface condition:</strong> residue cover (entered as a percent, 0–100) shades the soil and lowers evaporation, and the curve number sets rainfall runoff.</p>
+<p><strong>Surface condition:</strong> residue cover (entered as a percent, 0–100) shades the soil and lowers soil evaporation by 5% for every 10% of surface covered (FAO-56 Ch. 10, organic mulches), and the curve number sets rainfall runoff.</p>
 
 <h3>Reading the charts</h3>
 <ul>

@@ -22,9 +22,10 @@ changes between the options being compared.</p>
       plus an optional "no cover crop" baseline, and the fixed cash-crop
       planting date.</li>
   <li><strong>Fallow after termination</strong> — the residue cover (a percent,
-      0–100, that lowers evaporation) and curve number (runoff) for the gap
-      between termination and cash planting (and for the baseline's full fallow
-      window).</li>
+      0–100, that lowers evaporation) for the gap between termination and cash
+      planting, and the curve number (runoff) for that gap and for the
+      baseline's full fallow window. The baseline's own residue cover is fixed
+      at 90 %.</li>
   <li><strong>Run comparison</strong> — every historical occurrence of the
       cover crop's planting month/day is replayed once per option.</li>
 </ol>
@@ -47,8 +48,9 @@ block (terminated on the chosen date, Kcb ramping to zero over 5 days) with
 a fallow block covering the rest of the gap to cash planting, and runs it
 through the same engine as every other mode — one continuous water balance,
 no separate "cover crop" physics. The baseline option replaces the cover
-crop entirely with bare/residue fallow for the same window, so the
-comparison is apples-to-apples.</p>
+crop entirely with a no-till fallow under 90 % residue cover (the previous
+cash crop's stubble) for the same window, so the cover crop is compared
+against a realistic alternative rather than bare soil.</p>
 
 <p>The result reported per year is the <strong>whole-profile available
 water</strong> (root zone + subsoil, as a fraction of total available water)

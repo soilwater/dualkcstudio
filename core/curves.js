@@ -96,6 +96,35 @@ export function rootDepthArray(N, crop) {
   return out;
 }
 
+/**
+ * Root depth for a Kcb series with no growth stages (a vegetation-index-driven
+ * run has no planting date, so rootDepthArray's L_ini + L_dev ramp does not
+ * exist). The alternative to the time ramp ties Zr to Kcb, as the FAO-56
+ * Annex 8 spreadsheet example does:
+ *
+ *   Zr = Zr_min + (Zr_max - Zr_min) * (Kcb_peak - Kc_min) / (Kcb_full - Kc_min)
+ *
+ * clamped to [Zr_min, Zr_max]. As in canopyHeightArray, `Kcb_peak` is the
+ * running maximum of Kcb — roots do not retreat through senescence — and it
+ * resets whenever Kcb drops to or below Kc_min (no crop), so the next green-up
+ * starts again from Zr_min.
+ */
+export function rootDepthFromKcb(KcbArr, { Zr_min, Zr_max, Kcb_full, Kc_min = 0.15 }) {
+  let out = new Array(KcbArr.length);
+  let zMin = Math.min(Zr_min, Zr_max);
+  let peak = 0;
+  for (let i = 0; i < KcbArr.length; i++) {
+    let kcMin = at(Kc_min, i);
+    let kcb = KcbArr[i];
+    if (kcb <= kcMin) peak = 0;
+    else peak = Math.max(peak, kcb);
+    let span = at(Kcb_full, i) - kcMin;
+    let frac = span > 1e-9 ? (peak - kcMin) / span : 0;
+    out[i] = zMin + (Zr_max - zMin) * Math.min(Math.max(frac, 0), 1);
+  }
+  return out;
+}
+
 // ── Canopy height (input to FAO-56 Eq. 72 and Eq. 76) ──────────────────────
 
 /**
@@ -188,8 +217,20 @@ export function fcFromKcb(Kcb, { Kc_min = 0.15, Kc_max, h = 0, model = 'height',
  */
 export function kcMax(Kcb, { u2, rhmin, h }) {
   let hh = Math.max(h, 0);
-  let climate = 1.2 + (0.04 * (u2 - 2.0) - 0.004 * (rhmin - 45.0)) * Math.pow(hh / 3.0, 0.3);
+  let climate = 1.2 + climateTerm(u2, rhmin) * Math.pow(hh / 3.0, 0.3);
   return Math.max(climate, Kcb + 0.05);
+}
+
+/**
+ * The wind/humidity term shared by Eq. 62, 70 and 72, with the manual's stated
+ * validity limits applied: 1 <= u2 <= 6 m/s and 20% <= RHmin <= 80%. Outside
+ * them the correction is held at the limit, not extrapolated — a 9 m/s, 5% RH
+ * day would otherwise push Kc_max past 1.5.
+ */
+function climateTerm(u2, rhmin) {
+  let u = Math.min(Math.max(u2, 1.0), 6.0);
+  let rh = Math.min(Math.max(rhmin, 20.0), 80.0);
+  return 0.04 * (u - 2.0) - 0.004 * (rh - 45.0);
 }
 
 // ── Climate adjustment of tabulated Kcb (FAO-56 Eq. 70) ────────────────────
@@ -214,7 +255,7 @@ export function kcMax(Kcb, { u2, rhmin, h }) {
  */
 export function adjustKcbForClimate(kcbTabulated, { u2, rhmin, h }) {
   if (!(kcbTabulated > 0.45)) return kcbTabulated;
-  return kcbTabulated + (0.04 * (u2 - 2.0) - 0.004 * (rhmin - 45.0)) * Math.pow(Math.max(h, 0) / 3.0, 0.3);
+  return kcbTabulated + climateTerm(u2, rhmin) * Math.pow(Math.max(h, 0) / 3.0, 0.3);
 }
 
 /**

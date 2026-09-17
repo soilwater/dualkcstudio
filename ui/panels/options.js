@@ -12,13 +12,13 @@ import { numInput, selectInput, ctrl, checkbox, btn, subhead } from '../componen
 export function createOptionsPanel({ onChange } = {}) {
   const fcModelSel = selectInput({
     options: [
-      { value: 'height', label: 'Canopy height' },
+      { value: 'height', label: 'Canopy height (Eq. 76)' },
       { value: 'kcb', label: 'Linear in Kcb' },
     ],
     value: STRICT_OPTIONS.fcModel, onChange: changed,
   });
   const FC_HELP = {
-    height: 'Strict FAO-56 Eq. 76 (fc from canopy height).',
+    height: 'Strict FAO-56 Eq. 76 (fc from canopy height). Can leave a full, tall canopy at fc ≈ 0.6–0.7 in windy, dry climates.',
     kcb: 'fc scales linearly with Kcb — better for row crops (Trout & DeJonge 2018).',
   };
   const fcHelp = el('div', { class: 'ctrl__help' }, FC_HELP[STRICT_OPTIONS.fcModel]);

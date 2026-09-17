@@ -214,19 +214,22 @@ export function buildRotation(blocks, numCycles, { zrFloor = 0.30 } = {}) {
 /* ── Summary indices (Farahani et al. 1998; PPUE, E/P) ─────────────────── */
 
 /**
- * SPSI = 1 − Ef/Pf (fraction of fallow-period rain not lost to fallow ET),
- * SPUI = 1 − Ef/Ps (fraction of ALL rain not lost to fallow ET),
+ * SPSI = 1 − Ef/Pf (fraction of fallow-period rain stored, not lost),
+ * SPUI = 1 − Ef/Ps (fraction of ALL rain not lost during fallow),
  * PPUE = T/P (fraction of rain converted to transpiration), E/P.
- * Ef is fallow-period ETc (no crop → all evaporation); Pf fallow precip;
- * Ps total precip. Computed from the paper's Eq. 1/2 directly, not a
- * storage-delta proxy.
+ * Farahani et al. (1998, SSSAJ 62:984-991) Eq. [1] and [2]. Ef is "the sum of
+ * all fallow precipitation losses" — every mm of fallow rain that did NOT end
+ * up stored: evaporation (plus any weed transpiration), runoff, and deep
+ * percolation out of the profile. That is what makes SPSI equal Sf/Pf, the
+ * paper's own restatement (fallow storage efficiency written for the whole
+ * system). Pf is fallow precip; Ps total precip over the run.
  */
 export function computeSummary(rows) {
   let P = 0, Pf = 0, Ef = 0, T = 0, E = 0, ETc = 0, ETo = 0, RO = 0, DP = 0, stress = 0;
   for (const r of rows) {
     P += r.prcp; T += r.T; E += r.E; ETc += r.ETc; ETo += r.ETo;
     RO += r.runoff; DP += r.deep_percolation;
-    if (r.block_type === 'fallow') { Pf += r.prcp; Ef += r.ETc; }
+    if (r.block_type === 'fallow') { Pf += r.prcp; Ef += r.ETc + r.runoff + r.deep_percolation; }
     if (r.Kcb > 0 && r.Ks < 1 - 1e-9) stress++;
   }
   return {
@@ -234,7 +237,7 @@ export function computeSummary(rows) {
     precipitation: P, eto: ETo, etc: ETc,
     transpiration: T, evaporation: E,
     runoff: RO, deep_percolation: DP,
-    stress_days: stress, fallow_precip: Pf, fallow_et: Ef,
+    stress_days: stress, fallow_precip: Pf, fallow_losses: Ef,
     SPSI: Pf > 0 ? 1 - Ef / Pf : null,
     SPUI: P > 0 ? 1 - Ef / P : null,
     PPUE: P > 0 ? T / P : null,

@@ -271,6 +271,10 @@ export const FALLOW_PRESET = {
   Kcb_ini: 0.0, Kcb_mid: 0.0, Kcb_end: 0.0,
   Zr_ini: 0.0, Zr_max: 0.0,
   h_max: 0.0, p_tab: 0.5,
-  CN: 91, // bare soil, good condition — matches this preset's 0%-residue-cover default
+  // NRCS TR-55 Table 2-2b, Hydrologic Soil Group C: "Fallow — crop residue
+  // cover (CR), good condition" = 88. The fallow blocks built from this preset
+  // default to 50% residue cover (no-till), so the bare-soil fallow value (91)
+  // would contradict them. For a tilled, bare fallow set CN 91 and residue 0.
+  CN: 88,
   duration: 60, // default fallow length, days — purely a UI default
 };

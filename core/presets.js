@@ -18,13 +18,24 @@
  *     by rooting deeper, and it costs one state variable.
  *   - Charging the root zone with the full ETc = (Kcb + Ke) ETo, per
  *     Eq. 85. Soil evaporation depletes the profile. This is the manual.
- *   - Residue cover reducing TEW by 5% per 10% of soil surface covered,
- *     REW capped at TEW. This is the manual's own guidance (p. 208, in the
- *     discussion of Eq. 73), not a departure from it.
+ *   - Residue cover reducing soil evaporation by 5% per 10% of soil surface
+ *     covered. This is the manual's own guidance for the dual coefficient
+ *     (Ch. 10, "Organic mulches": "the magnitude of the evaporation component
+ *     (Ke ETo) should be reduced by about 5% for each 10% of soil surface
+ *     covered by the organic mulch. Kcb is not changed."). It is applied to
+ *     Ke, NOT to TEW: shrinking TEW only shortens the drying cycle, which does
+ *     almost nothing under frequent wetting, when stage-1 evaporation is
+ *     energy-limited rather than storage-limited.
+ *   - The wind / RHmin term of Eq. 70 and Eq. 72 held inside the manual's
+ *     stated limits (1-6 m/s, 20-80%).
  *
- * Two things are always on and ARE departures from the manual, flagged
- * here so nobody has to read engine.js to find out:
+ * Things that are always on and ARE departures from the manual, flagged here
+ * so nobody has to read engine.js to find out:
  *
+ *   - Automatic irrigation (management.irrigation_mode 'auto') is a scheduling
+ *     convenience the manual does not define; it only acts when a caller
+ *     selects it. It fires only while a crop is present and stops at 80% of
+ *     the growing season. See engine.js.
  *   - SCS Curve Number runoff. FAO-56 Ch. 8 treats runoff as a caller-
  *     supplied input and does not specify a method. CN is a defensible
  *     choice; it is not the manual's.
@@ -35,15 +46,16 @@
 
 export const STRICT_OPTIONS = Object.freeze({
   // ── Canopy cover, fc (FAO-56 Eq. 76) ────────────────────────────────────
-  // 'height' — the manual's exponent 1 + 0.5h. Kept as the default: it's the
-  //            literal equation, and the case against it (below) is from a
-  //            single crop/site.
-  // 'kcb'    — exponent fixed at 1: fc is a straight rescaling of Kcb
-  //            between bare soil and full cover, no height needed. Six
-  //            seasons of maize (Trout & DeJonge 2018) fit this shape with
-  //            R^2 = 0.91, better than 'height's convex curve at maize
-  //            height — worth choosing explicitly for row crops. See
-  //            curves.js's fcFromKcb.
+  // 'height' — the manual's exponent 1 + 0.5h. The default, because it is the
+  //            literal equation. Be aware of what it does to a tall crop in a
+  //            windy, dry climate (large Kc_max): a full maize canopy comes
+  //            out at fc ~ 0.6-0.7, i.e. 30-40% exposed soil and several mm/d
+  //            of evaporation under a closed canopy.
+  // 'kcb'    — exponent fixed at 1: fc is a straight rescaling of Kcb between
+  //            bare soil and full cover, no height needed. Six seasons of
+  //            maize (Trout & DeJonge 2018) fit this shape with R^2 = 0.91,
+  //            better than 'height's convex curve at maize height — worth
+  //            choosing explicitly for row crops. See curves.js's fcFromKcb.
   fcModel: 'height',
 
   // ── Kcb curve shape (FAO-56 Fig. 36) ────────────────────────────────────

@@ -19,9 +19,13 @@ export function penmanMonteithDaily(lat, elev, doy, tmin, tmax, rmin, rmax, srad
   const e_sat_min = 0.6108 * Math.exp(17.27 * tmin / (tmin + 237.3));
   const e_sat_max = 0.6108 * Math.exp(17.27 * tmax / (tmax + 237.3));
   const e_sat = (e_sat_min + e_sat_max) / 2.0;
-  const e_act = (e_sat_min * rmax / 100.0 + e_sat_max * rmin / 100.0) / 2.0;
+  const hasVpd = vpd !== null && vpd !== undefined && !isNaN(vpd);
+  let e_act = (e_sat_min * rmax / 100.0 + e_sat_max * rmin / 100.0) / 2.0;
+  // A record with VPD but no RH columns: recover the actual vapour pressure
+  // (needed by the net longwave term) from e_sat - VPD instead of going NaN.
+  if (!isFinite(e_act) && hasVpd) e_act = Math.max(e_sat - Math.max(vpd, 0.0), 0.0);
 
-  const actualVpd = (vpd !== null && !isNaN(vpd)) ? Math.max(vpd, 0.0) : Math.max(e_sat - e_act, 0.0);
+  const actualVpd = hasVpd ? Math.max(vpd, 0.0) : Math.max(e_sat - e_act, 0.0);
   const delta = 4098.0 * (0.6108 * Math.exp(17.27 * tavg / (tavg + 237.3))) / Math.pow(tavg + 237.3, 2);
 
   const dr = 1.0 + 0.033 * Math.cos(2.0 * Math.PI * doy / 365.0);

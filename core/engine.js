@@ -21,9 +21,9 @@
  * Full ETc in the root-zone balance (Eq. 85). Soil evaporation depletes the
  * profile, not just the surface book. This is the manual.
  *
- * Residue cover reduces TEW by 5% per 10% of soil surface covered, REW
- * capped at TEW (p. 208). This is the manual's own guidance, not a
- * departure from it.
+ * Residue cover reduces the evaporation component Ke ETo by 5% per 10% of
+ * soil surface covered; Kcb, TEW and REW are untouched (Ch. 10, "Organic
+ * mulches"). This is the manual's own guidance, not a departure from it.
  *
  * One departure from the manual, always on: SCS Curve Number runoff (the
  * manual leaves runoff to the caller). See presets.js.
@@ -72,6 +72,11 @@ import { canopyHeightArray, fcFromKcb, kcMax, resolveKcbFn, rootDepthArray, adju
 import { makeSoilProfile, rootWater } from './rootZone.js';
 import { resolveOptions } from './presets.js';
 
+// Automatic irrigation stops once this fraction of the growing season has
+// passed. 0.80 is typical for maize: a 150-day crop stops at day 120, about
+// the dent stage, which is also where Table 11's late-season stage begins.
+const AUTO_IRRIG_SEASON_FRACTION = 0.80;
+
 // Scalar-or-array access.
 function at(v, i) { return Array.isArray(v) ? v[i] : v; }
 function isNum(v) { return typeof v === 'number' && isFinite(v); }
@@ -79,11 +84,24 @@ function isNum(v) { return typeof v === 'number' && isFinite(v); }
 // FAO-56 Eq. 73 — total and readily evaporable water. The evaporation layer is
 // a sub-volume of the (single, homogeneous) soil, so it uses the same fc/wp as
 // the root zone — only the depth (Ze) and the 0.5·wp term differ.
-function evaporableWater(soil, residueCover) {
-  let TEWbare = Math.max(1000.0 * (soil.fc - 0.5 * soil.wp) * soil.Ze, 1.0);
-  let TEW = TEWbare * Math.max(1.0 - 0.5 * residueCover, 0.1);
+function evaporableWater(soil) {
+  let TEW = Math.max(1000.0 * (soil.fc - 0.5 * soil.wp) * soil.Ze, 1.0);
   let REW = Math.min(soil.REW_frac * TEW, TEW);
   return { TEW, REW };
+}
+
+// Residue / organic mulch. FAO-56 Ch. 10, "Effects of surface mulches —
+// Organic mulches — Dual crop coefficient" (pp. 197-198): "the magnitude of the
+// evaporation component (Ke ETo) should be reduced by about 5% for each 10% of
+// soil surface covered by the organic mulch. Kcb is not changed." The manual
+// gives this as a rule applied to Eq. 71, not as a numbered equation:
+//
+//   Ke = (1 - 0.5 f_residue) * min[ Kr (Kc_max - Kcb), few Kc_max ]   (Eq. 71 x rule)
+//
+// with f_residue the covered fraction, 0-1. TEW and REW (Eq. 73) are untouched.
+function residueFactor(residueCover) {
+  let rc = Math.min(Math.max(residueCover, 0.0), 1.0);
+  return 1.0 - 0.5 * rc;
 }
 
 // SCS Curve Number runoff, mm (lambda = 0.2).
@@ -132,6 +150,13 @@ function validate(soil, crop, management, df, options) {
   }
   if (!Array.isArray(crop.Zr) && !isNum(crop.Zr_max)) {
     err.push('crop.Zr_max is required unless crop.Zr is supplied as an array.');
+  }
+  // Generated root depth ramps over L_ini + L_dev. Without them the ramp is
+  // undefined and Zr would silently sit at Zr_max from day 0.
+  if (!Array.isArray(crop.Zr) && hasKcbArr && !(isNum(crop.L_ini) && isNum(crop.L_dev))) {
+    err.push('crop.Zr must be supplied as an array when crop.Kcb is an array and crop.L_ini / crop.L_dev '
+      + 'are absent: there are no growth stages to ramp root depth over. Build it with curves.js\'s '
+      + 'rootDepthFromKcb (or rootDepthArray), or pass a constant array if a fixed depth is intended.');
   }
 
   if (crop.h === undefined) {
@@ -262,6 +287,35 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
       : fcFromKcb(Kcb[n], { Kc_min: at(Kc_min, n), Kc_max: Kc_maxArr[n], h: h[n], model: options.fcModel, fc_max });
   }
 
+  // Days on which AUTOMATIC irrigation may fire. Kept deliberately simple:
+  //   - only while a crop is present (Kcb above Kc_min). The root-zone
+  //     depletion that triggers an event includes soil evaporation (Eq. 85), so
+  //     without this a bare seedbed — or a winter fallow — gets irrigated just
+  //     to feed evaporation. With the usual Kcb_ini = Kc_min this also means
+  //     no events during the initial stage;
+  //   - never past AUTO_IRRIG_SEASON_FRACTION of the growing season (end-of-
+  //     season dry-down). With tabulated stages the season is day 0 to
+  //     L_ini + L_dev + L_mid + L_late. With a Kcb array there are no stages,
+  //     so each unbroken run of days with a crop present is one season.
+  // Pre-season / bare-soil irrigation is still possible through the `irrig`
+  // data column or the 'scheduled' mode, neither of which is filtered.
+  let autoOk = new Array(N);
+  let present = new Array(N);
+  for (let n = 0; n < N; n++) present[n] = Kcb[n] > at(Kc_min, n) + 1e-9;
+  if (!kcbIsArray) {
+    let cutoff = AUTO_IRRIG_SEASON_FRACTION * (crop.L_ini + crop.L_dev + crop.L_mid + crop.L_late);
+    for (let n = 0; n < N; n++) autoOk[n] = present[n] && n < cutoff;
+  } else {
+    let n = 0;
+    while (n < N) {
+      if (!present[n]) { autoOk[n] = false; n++; continue; }
+      let start = n;
+      while (n < N && present[n]) n++;
+      let cutoff = start + AUTO_IRRIG_SEASON_FRACTION * (n - start);
+      for (let k = start; k < n; k++) autoOk[k] = k < cutoff;
+    }
+  }
+
   // PART 2 — Daily soil water balance (FAO-56 Ch. 7 and Ch. 8)
   let profile = makeSoilProfile();
   let state = profile.init({
@@ -300,6 +354,11 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
 
   let storage0 = rootWater(state.Dr, Zr[0], rz_fc) + state.Ss;
 
+  // TEW / REW are soil properties (Eq. 73), constant through the run.
+  let ew = evaporableWater(soil);
+  let TEW = ew.TEW;
+  let REW = ew.REW;
+
   for (let n = 0; n < N; n++) {
     let ETo = df[n].ETo;
     let prcp = df[n].prcp;
@@ -320,9 +379,6 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
     let Dr_prev = Math.min(Math.max(state.Dr, 0.0), TAW);
     let De_prev = De;
 
-    let ew = evaporableWater(soil, residue_cover);
-    let TEW = ew.TEW;
-    let REW = ew.REW;
 
     // Step 2: runoff and net infiltration (Pnet), then irrigation.
     let RO = curveNumberRunoff(prcp, CN);
@@ -335,8 +391,10 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
       ? Infinity
       : Math.max(irrig_allocation - cum_irrig - I, 0.0);
 
-    if (management.irrigation_mode === 'auto' && canIrrigate) {
-      if (Dr_prev >= management.mad * TAW) I += Math.min(Dr_prev, management.irrig_amount, remainingAlloc);
+    if (management.irrigation_mode === 'auto' && canIrrigate && autoOk[n]) {
+      // Gross depth: what it takes to refill the root zone AFTER application
+      // losses (Dr / efficiency), capped by the event amount and allocation.
+      if (Dr_prev >= management.mad * TAW) I += Math.min(Dr_prev / irrig_eff, management.irrig_amount, remainingAlloc);
     } else if (management.irrigation_mode === 'scheduled') {
       let sched = management.irrig_schedule || [];
       if (canIrrigate && sched.includes(n)) I += Math.min(management.irrig_amount, remainingAlloc);
@@ -350,10 +408,15 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
 
     if (Pnet > 0.0 || I_net > 0.0) fw_event = (Pnet >= I_net) ? 1.0 : fw_irrig;
 
-    // Step 3: soil evaporation (Eq. 71, 72, 74, 75).
+    // Step 3: soil evaporation (Eq. 71, 72, 74, 75). One convention throughout
+    // the model: today's coefficients come from the state at the END of the
+    // previous day — Kr from De,i-1 (Eq. 74 as written) and Ks from Dr,i-1
+    // (Eq. 84) — so rain or irrigation today shows up in E and T tomorrow.
     let KrToday = (De_prev <= REW) ? 1.0 : Math.max((TEW - De_prev) / (TEW - REW), 0.0);
     let fewToday = Math.max(Math.min(1.0 - fc[n], fw_event), 1e-6);
-    let KeToday = Math.max(Math.min(KrToday * (Kc_maxArr[n] - Kcb[n]), fewToday * Kc_maxArr[n]), 0.0);
+    // Residue / organic mulch scales the evaporation component itself (Ch. 10).
+    let KeToday = residueFactor(residue_cover)
+      * Math.max(Math.min(KrToday * (Kc_maxArr[n] - Kcb[n]), fewToday * Kc_maxArr[n]), 0.0);
     let EToday = KeToday * ETo;
 
     // Step 4: root-zone depletion threshold (Eq. 82, 83) and transpiration (Eq. 71, 84).

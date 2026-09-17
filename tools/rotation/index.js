@@ -199,8 +199,8 @@ function create() {
       { label: 'Runoff', value: s.runoff, unit: 'mm' },
       { label: 'Deep perc.', value: s.deep_percolation, unit: 'mm' },
       { label: 'Stress days', value: s.stress_days, unit: 'd', title: 'Days with a crop present and Ks < 1' },
-      { label: 'SPSI', accent: true, value: s.SPSI === null ? '—' : fmt(s.SPSI, 2), title: 'Fallow storage efficiency: 1 − (fallow ET / fallow precip). Farahani 1998 Eq. 1' },
-      { label: 'SPUI', accent: true, value: s.SPUI === null ? '—' : fmt(s.SPUI, 2), title: 'System precip use index: 1 − (fallow ET / total precip). Farahani 1998 Eq. 2' },
+      { label: 'SPSI', accent: true, value: s.SPSI === null ? '—' : fmt(s.SPSI, 2), title: 'Fallow storage efficiency: 1 − (fallow losses / fallow precip), losses = evaporation + runoff + deep percolation. Farahani 1998 Eq. 1' },
+      { label: 'SPUI', accent: true, value: s.SPUI === null ? '—' : fmt(s.SPUI, 2), title: 'System precip use index: 1 − (fallow losses / total precip). Farahani 1998 Eq. 2' },
       { label: 'PPUE', accent: true, value: s.PPUE === null ? '—' : fmt(s.PPUE, 2), title: 'Productive precip use: transpiration / total precip' },
       { label: 'E / P', value: s.E_over_P === null ? '—' : fmt(s.E_over_P, 2), title: 'Soil evaporation / total precip' },
     ]);

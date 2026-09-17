@@ -20,7 +20,14 @@ sign-in lasts about an hour and survives a reload; after that, sign in again.</p
 <h3>One engine, per pixel</h3>
 <p>There is no separate spatial model: each pixel is run through the exact same
 FAO-56 engine as the Single Season tool, with that pixel's own soil and
-satellite-derived Kcb, so a one-pixel field reproduces Single Season exactly.
+satellite-derived Kcb. A satellite series has no planting date or growth
+stages, so root depth follows each pixel's own Kcb instead of a time ramp: it
+sits at the evaporation layer + 0.2 m under bare soil, deepens to the maximum
+root depth as Kcb approaches Kcb max, holds through senescence, and resets once
+the canopy is gone. Runs are rainfed by design: Kcb is fixed by the satellite,
+so a simulated irrigation could not feed back on the canopy (irrigating today
+does not change tomorrow's observed Kcb). Use Single Season for irrigation
+questions.
 Fields up to 2,500 ha are accepted; a larger boundary is flagged before it
 runs. For larger areas use the Mesoscale tool.</p>
 

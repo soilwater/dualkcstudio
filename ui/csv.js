@@ -65,7 +65,8 @@ function fillInteriorLinear(df, key) {
 /**
  * Loads an ETo-complete weather file for the model tools. Maps `eto` → `ETo`,
  * injects the FAO-56 standard climate where wind / RHmin are absent, fills
- * interior ETo gaps (no extrapolation), and returns an engine-ready daily
+ * interior ETo gaps and interpolates sparse kcb_obs between observations (no
+ * extrapolation for either), and returns an engine-ready daily
  * array plus the standard summary and which corrections are supported.
  *
  * @returns {{df, summary, hasWspd, hasRmin}}
@@ -88,6 +89,16 @@ export function loadModelWeather(text) {
   fillInteriorLinear(rows, 'ETo');
   if (hasWspd) fillInteriorLinear(rows, 'wspd');
   if (hasRmin) fillInteriorLinear(rows, 'rmin');
+
+  /* kcb_obs is sparse by design (clear-sky observation days only). The engine
+     uses it verbatim where finite and the tabulated curve elsewhere, so it must
+     be interpolated between observations HERE or the run gets a sawtooth Kcb.
+     Linear, no extrapolation: before the first / after the last observation
+     the tabulated curve still applies. */
+  if (parsed.keys.includes('kcb_obs')) {
+    rows.forEach(r => { if (isFinite(r.kcb_obs)) r.kcb_obs = Math.max(r.kcb_obs, 0); });
+    fillInteriorLinear(rows, 'kcb_obs');
+  }
 
   return { df: rows, summary: recordSummary(rows), hasWspd, hasRmin };
 }

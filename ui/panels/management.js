@@ -35,18 +35,23 @@ export function createManagementPanel({ onChange, irrigation = true } = {}) {
 
   const autoRows = el('div', {}, ctrl('MAD trigger', madIn.el, { unit: '%' }), ctrl('Min. spacing', delayIn.el, { unit: 'd' }));
   const schedRows = el('div', {}, ctrl('Every', intervalIn.el, { unit: 'd' }));
-  const commonRows = el('div', {},
+  /* Amount and allocation only make sense when the model decides the events
+     (Auto / Interval). Efficiency and method describe the SYSTEM, so they apply
+     to every irrigated mode, including applied depths read from the CSV. */
+  const eventRows = el('div', {},
     ctrl('Amount / event', amountIn.el, { unit: 'mm' }),
-    ctrl('Efficiency', effIn.el, { unit: '0–1' }),
     ctrl('Allocation', allocIn.el, { unit: 'mm', help: 'Season cap on total applied irrigation; blank = unlimited.' }),
+  );
+  const systemRows = el('div', {},
+    ctrl('Efficiency', effIn.el, { unit: '0–1', help: 'Fraction of the applied (gross) depth that reaches the soil.' }),
     ctrl('Method', methodSel.el, { help: 'Sets the wetted soil fraction fw: sprinkler 1.00, furrow 0.70, drip 0.35.' }),
   );
-  const manualNote = el('div', { class: 'hint' }, 'Uses the irrig column from the CSV as-is.');
+  const manualNote = el('div', { class: 'hint' }, 'Uses the irrig column from the CSV as the applied (gross) depth; efficiency and method below still apply.');
 
   const irrigBlock = el('div', {},
     subhead('Irrigation'),
     ctrl('Mode', modeSeg.el, { stack: true }),
-    manualNote, autoRows, schedRows, commonRows,
+    manualNote, autoRows, schedRows, eventRows, systemRows,
   );
 
   const root = el('div', {},
@@ -60,7 +65,8 @@ export function createManagementPanel({ onChange, irrigation = true } = {}) {
     manualNote.hidden = m !== 'manual';
     autoRows.hidden = m !== 'auto';
     schedRows.hidden = m !== 'scheduled';
-    commonRows.hidden = m === 'rainfed' || m === 'manual';
+    eventRows.hidden = m === 'rainfed' || m === 'manual';
+    systemRows.hidden = m === 'rainfed';
   }
 
   function changed() { onChange && onChange(); }
@@ -68,9 +74,11 @@ export function createManagementPanel({ onChange, irrigation = true } = {}) {
   function getManagement(numDays) {
     const mode = irrigation ? modeSeg.get() : 'rainfed';
     const mgmt = { residue_cover: (residueIn.get() || 0) / 100, curve_number: cnIn.get(), irrigation_mode: mode };
-    if (mode === 'auto' || mode === 'scheduled') {
+    if (mode !== 'rainfed') {
       mgmt.fw = IRRIG_METHODS[methodSel.get()];
       mgmt.irrig_efficiency = effIn.get();
+    }
+    if (mode === 'auto' || mode === 'scheduled') {
       const alloc = allocIn.get();
       if (isFinite(alloc) && alloc > 0) mgmt.irrig_allocation = alloc;
     }

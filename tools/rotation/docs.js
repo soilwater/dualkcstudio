@@ -54,8 +54,10 @@ irrigation scheduling questions.</p>
 <table>
   <tr><th>index</th><th>formula</th><th>reads as</th></tr>
   <tr><td>SPSI</td><td>1 − E<sub>fallow</sub> / P<sub>fallow</sub></td>
-      <td>share of fallow-period rain not lost to evaporation (fallow storage
-      efficiency; Farahani et al. 1998, Eq. 1)</td></tr>
+      <td>share of fallow-period rain that ends up stored in the soil (fallow
+      storage efficiency, S<sub>f</sub>/P<sub>f</sub>; Farahani et al. 1998,
+      Eq. 1). E<sub>fallow</sub> is every fallow-period loss: evaporation,
+      runoff and deep percolation</td></tr>
   <tr><td>SPUI</td><td>1 − E<sub>fallow</sub> / P<sub>total</sub></td>
       <td>share of all rain not lost during fallow (system-level; Eq. 2)</td></tr>
   <tr><td>PPUE</td><td>T / P<sub>total</sub></td>

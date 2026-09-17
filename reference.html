@@ -290,7 +290,7 @@
         <div class="body">
           <div class="name">Upper limit <var>Kc_max</var></div>
           <div class="formula">K<sub>c,max</sub> <span class="op">= max{</span> 1.2 <span class="op">+</span> [0.04(u<sub>2</sub><span class="op">&#8722;</span>2) <span class="op">&#8722;</span> 0.004(RH<sub>min</sub><span class="op">&#8722;</span>45)]&#8201;(h/3)<sup>0.3</sup> <span class="op">,</span> K<sub>cb</sub><span class="op">+</span>0.05 <span class="op">}</span></div>
-          <p class="note">The ceiling on evaporation&nbsp;+&nbsp;transpiration, corrected for the day's wind and humidity over the standing canopy.</p>
+          <p class="note">The ceiling on evaporation&nbsp;+&nbsp;transpiration, corrected for the day's wind and humidity over the standing canopy. The manual's limits apply: <var>u2</var> is held within 1&#8211;6&nbsp;m&nbsp;s&#8315;&#185; and <var>RHmin</var> within 20&#8211;80&nbsp;%.</p>
         </div>
       </div>
       <div class="eq">
@@ -327,6 +327,14 @@
           <div class="name">Evaporation coefficient <var>Ke</var> &amp; flux <var>E</var></div>
           <div class="formula">f<sub>ew</sub> <span class="op">=</span> min(1<span class="op">&#8722;</span>f<sub>c</sub>, f<sub>w</sub>) &nbsp;&nbsp; K<sub>e</sub> <span class="op">=</span> min[ K<sub>r</sub>(K<sub>c,max</sub><span class="op">&#8722;</span>K<sub>cb</sub>), f<sub>ew</sub>K<sub>c,max</sub> ] &nbsp;&nbsp; <span class="hl">E <span class="op">=</span> K<sub>e</sub>&#183;ETo</span></div>
           <p class="note">Evaporation is limited both by how dry the surface is (<var>Kr</var>) and by how much soil is exposed and wet (<var>few</var>).</p>
+        </div>
+      </div>
+      <div class="eq">
+        <div class="tag">Ch. 10&#8202;&#183;&#8202;p.&nbsp;197&#8211;198</div>
+        <div class="body">
+          <div class="name">Residue / organic mulch on <var>Ke</var></div>
+          <div class="formula">K<sub>e</sub> <span class="op">=</span> <span class="hl">(1 <span class="op">&#8722;</span> 0.5&#8201;f<sub>residue</sub>)</span> &#183; min[ K<sub>r</sub>(K<sub>c,max</sub><span class="op">&#8722;</span>K<sub>cb</sub>), f<sub>ew</sub>K<sub>c,max</sub> ]</div>
+          <p class="note">The manual states this as a rule on Eq.&nbsp;71 rather than a numbered equation (&#8220;Organic mulches &#8212; Dual crop coefficient&#8221;): &#8220;the magnitude of the evaporation component (K<sub>e</sub>&#8201;ET<sub>o</sub>) should be reduced by about 5% for each 10% of soil surface covered by the organic mulch. K<sub>cb</sub> is not changed.&#8221; <var>f_residue</var> is the covered fraction (0&#8211;1); TEW and REW (Eq.&nbsp;73) are untouched.</p>
         </div>
       </div>
     </div>
@@ -435,7 +443,7 @@
     <div class="refs">
       <div class="ref">
         <div class="ref-name">Canopy cover from a rescaled K<sub>cb</sub></div>
-        <p>The manual derives fraction cover from Eq. 76's height exponent; the alternative maps K<sub>cb</sub> straight onto 0&#8211;1 (exponent 1). Six seasons of maize fit a straight line, f<sub>c</sub> = 1.10&#183;K<sub>cb</sub> + 0.17 (R&#178; = 0.91) &#8212; a better shape than the convex curve at full canopy height. <span class="cite">Trout &amp; DeJonge (2018), J. Irrig. Drain. Eng. 144(6).</span></p>
+        <p>The manual derives fraction cover from Eq. 76's height exponent; the alternative maps K<sub>cb</sub> straight onto 0&#8211;1 (exponent 1). For a tall crop in a windy, dry climate the height exponent can leave a full canopy at f<sub>c</sub>&nbsp;&#8776;&nbsp;0.6&#8211;0.7, which is when this option matters most. Six seasons of maize fit a straight line, f<sub>c</sub> = 1.10&#183;K<sub>cb</sub> + 0.17 (R&#178; = 0.91) &#8212; a better shape than the convex curve at full canopy height. <span class="cite">Trout &amp; DeJonge (2018), J. Irrig. Drain. Eng. 144(6).</span></p>
       </div>
       <div class="ref">
         <div class="ref-name">K<sub>cb</sub> ramped from zero at planting</div>
@@ -454,7 +462,7 @@
         <p>Not in the manual: once the surface layer is exhausted FAO-56 has no mechanism left to dry the profile, yet a rainless multi-month fallow keeps drying as vapour rises from depth. This adds that flux as a lumped coefficient (0.01), fitted for southern Great Plains summer fallow &#8212; re-fit it against your own data before trusting it elsewhere. <span class="cite">Lollato et al. (2016), Agron. J. 108:745&#8211;757.</span></p>
       </div>
     </div>
-    <p class="sub" style="margin:22px 0 0">Two departures are always on, so that a weather file alone is enough to run: <b>SCS Curve Number</b> runoff &#8212; FAO-56 leaves runoff to the caller &#8212; and <b>canopy height inferred from K<sub>cb</sub></b> when a measured height isn't supplied.</p>
+    <p class="sub" style="margin:22px 0 0">Two departures are always on, so that a weather file alone is enough to run: <b>SCS Curve Number</b> runoff &#8212; FAO-56 leaves runoff to the caller &#8212; and <b>canopy height inferred from K<sub>cb</sub></b> when a measured height isn't supplied. <b>Residue cover</b> follows the manual's organic-mulch rule for the dual coefficient (Ch.&nbsp;10): the evaporation component K<sub>e</sub>&#8201;ET<sub>o</sub> is reduced 5&nbsp;% per 10&nbsp;% of surface covered, with K<sub>cb</sub>, TEW and REW unchanged. <b>Automatic irrigation</b> is a scheduling convenience: it fires at the MAD threshold only while a crop is present (K<sub>cb</sub> above K<sub>c,min</sub>) and stops once 80&nbsp;% of the growing season has passed, and applies the gross depth needed to refill the root zone after efficiency losses, up to the event amount.</p>
   </div>
 </section>
 

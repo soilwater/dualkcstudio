@@ -15,6 +15,7 @@
  */
 
 import { runModel } from '../../core/engine.js';
+import { rootDepthFromKcb } from '../../core/curves.js';
 
 /* Daily grids kept for the day-slider map (nPixels * T * 4 bytes each). Ke
    feeds the Kcb+Ke pixel plot; Sr_paw is root-zone plant-available water (mm).
@@ -55,6 +56,8 @@ export function runGrid(grid, soil, scalars, kcbStack, dates, weather, crop, mgm
   const { fc, wp } = soil;
   const { Ze, REW_frac, Zr_profile, faw0 } = scalars;
   const f0 = isFinite(faw0) ? Math.min(Math.max(faw0, 0), 1) : 0.7;
+  const zrMin = Ze + 0.2;
+  const kcMin = crop.Kc_min !== undefined ? crop.Kc_min : 0.15;
 
   const daily = {};
   for (const v of dailyVars) daily[v] = new Float32Array(T * nPixels).fill(NaN);
@@ -93,8 +96,16 @@ export function runGrid(grid, soil, scalars, kcbStack, dates, weather, crop, mgm
 
     const pixelSoil = { fc: fcP, wp: wpP, ini: iniP, Ze, REW_frac, Zr_profile };
 
-    for (let t = 0; t < T; t++) kcbCol[t] = kcbStack[t * nPixels + p];
-    const pixelCrop = { ...crop, Kcb: kcbCol };
+    /* Round off the Float32 storage error: Kcb min = 0.15 comes back as
+       0.15000000596, which is not <= Kc_min (0.15), so the "no crop" reset of
+       canopy height and root depth would never fire on bare soil. */
+    for (let t = 0; t < T; t++) kcbCol[t] = Math.round(kcbStack[t * nPixels + p] * 1e6) / 1e6;
+    /* A VI-driven pixel has no planting date or growth stages, so root depth
+       follows the pixel's own Kcb: Ze + 0.2 m (the engine's floor) under bare
+       soil, deepening to Zr_max as Kcb approaches Kcb_full, held through
+       senescence and reset when the canopy is gone. */
+    const zrCol = rootDepthFromKcb(kcbCol, { Zr_min: zrMin, Zr_max: crop.Zr_max, Kcb_full: crop.Kcb_full, Kc_min: kcMin });
+    const pixelCrop = { ...crop, Kcb: kcbCol, Zr: zrCol };
 
     let pixelWeather = weather;
     if (wx) {
