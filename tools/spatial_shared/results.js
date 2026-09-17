@@ -193,10 +193,10 @@ export function createResults() {
     if (m.kind === 'daily') return R.daily[varName].subarray(day * nP, (day + 1) * nP);
     if (m.kind === 'summary') return R.summary[varName];
     if (m.kind === 'derived') return (derivedCache[varName] ||= m.compute(R.summary));
-    if (varName === 'FC') return R.soil.rootzone_fc;
-    if (varName === 'WP') return R.soil.rootzone_wp;
+    if (varName === 'FC') return R.soil.fc;
+    if (varName === 'WP') return R.soil.wp;
     /* AWC */
-    if (!awc) { awc = new Float32Array(nP); for (let i = 0; i < nP; i++) awc[i] = R.soil.rootzone_fc[i] - R.soil.rootzone_wp[i]; }
+    if (!awc) { awc = new Float32Array(nP); for (let i = 0; i < nP; i++) awc[i] = R.soil.fc[i] - R.soil.wp[i]; }
     return awc;
   }
 

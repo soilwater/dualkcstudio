@@ -28,9 +28,10 @@ shape. Areas over 250,000 km² are flagged before running.</p>
       Kcb min) and a full-cover endpoint (EVI 0.70 → Kcb max), then interpolated
       to daily values per pixel.</td></tr>
   <tr><td>Soil</td><td><strong>SoilGrids</strong> (250 m, global), averaged to
-      4 km: sand, clay and organic carbon → field capacity &amp; wilting point
-      via the Saxton &amp; Rawls (2006) pedotransfer functions (surface layer
-      0–15 cm, root zone 0–100 cm).</td></tr>
+      4 km: sand, clay and organic carbon, as the 0–100 cm depth-weighted mean →
+      a single field capacity &amp; wilting point via the Saxton &amp; Rawls
+      (2006) pedotransfer functions (one homogeneous soil for the whole profile,
+      per FAO-56).</td></tr>
   <tr><td>Weather</td><td><strong>GRIDMET</strong>, per pixel (~4 km native, a
       natural match) — ETo and precipitation vary across the region rather than
       being a single series, and both are available as map layers.</td></tr>

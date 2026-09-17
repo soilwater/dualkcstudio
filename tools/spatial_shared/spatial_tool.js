@@ -100,24 +100,6 @@ function maskDailyToValid(stack, validMask, T, nPixels) {
   return stack;
 }
 
-/**
- * Override the mapped soil water limits with a single, uniform pair of values
- * (volumetric, m³/m³) applied to every pixel in the field — for when the user
- * knows the local field capacity and wilting point (e.g. a management zone or a
- * soil pit) better than the POLARIS/SoilGrids estimate. Only finite pixels are
- * touched, so the field footprint (the drawn/clipped mask and product no-data)
- * is preserved; masked pixels stay NaN and are not run. Both the surface (Ze)
- * and root-zone limits are set, so the profile is uniform. Caller guarantees
- * fc > wp.
- */
-function overrideSoilConstant(soil, fc, wp) {
-  for (let p = 0; p < soil.rootzone_fc.length; p++) {
-    if (!Number.isFinite(soil.rootzone_fc[p])) continue;   /* keep the mask */
-    soil.rootzone_fc[p] = fc; soil.rootzone_wp[p] = wp;
-    soil.surface_fc[p] = fc; soil.surface_wp[p] = wp;
-  }
-}
-
 /** Ray-casting point-in-polygon on [lng,lat] pairs (planar; fine at field scale). */
 function pointInRing(x, y, ring) {
   let inside = false;
@@ -142,7 +124,7 @@ export function createSpatialTool(config) {
   const wb = createWorkbench({ inputsLabel: 'Map', outputsLabel: 'Results' });
   const weatherList = config.weatherSources || [];
   const soilList = config.soilSources || [];
-  const state = { authed: false, tokenClient: null, map: null, drawn: null, fieldShape: null, center: { lat: DEFAULT.lat, lon: DEFAULT.lon }, vegSource: config.sources[0], weatherSource: weatherList[0], soilSource: soilList[0], result: null, scaleM: config.sources[0].scaleM };
+  const state = { authed: false, tokenClient: null, map: null, drawn: null, fieldShape: null, center: { lat: DEFAULT.lat, lon: DEFAULT.lon }, vegSource: config.sources[0], weatherSource: weatherList[0], soilSource: soilList[0], soilCustom: false, result: null, scaleM: config.sources[0].scaleM };
 
   /* ── Sidebar: Earth Engine ──────────────────────────────────────────── */
   const appConfigured = !!GEE_OAUTH_CLIENT_ID;
@@ -194,36 +176,27 @@ export function createSpatialTool(config) {
      POLARIS or SoilGrids). With a single source (Mesoscale: SoilGrids) the group
      is omitted. Chosen independently of the VI source, so a global soil can pair
      with any vegetation index. */
-  let gSoil = null;
-  const soilNote = el('div', { class: 'hint', style: { marginTop: '0.4rem', lineHeight: '1.4' } }, state.soilSource ? state.soilSource.note : '');
-  if (soilList.length > 1) {
-    const soilSel = selectInput({ options: soilList.map((s) => ({ value: s.id, label: s.label })), value: state.soilSource.id, onChange: onSoil });
-    gSoil = group('Soil', { open: true });
-    gSoil.body.append(ctrl('Source', soilSel.el), soilNote);
-  }
+  /* The Source dropdown lists the mapped products and, when a tool enables
+     config.soilAdjust (Field Scale), a mutually exclusive 'Custom' option.
+     Choosing Custom reveals a single field-capacity / wilting-point pair applied
+     uniformly to every pixel — for when the user knows the local values (a
+     management zone, a soil pit) better than POLARIS/SoilGrids. */
+  const soilOptions = soilList.map((s) => ({ value: s.id, label: s.label }));
+  if (config.soilAdjust) soilOptions.push({ value: 'custom', label: 'Custom (enter values)' });
 
-  /* Optional constant soil override: use the mapped product as-is, or enter a
-     single field capacity / wilting point applied uniformly to every pixel in
-     the field — for when the user knows the local values (a management zone, a
-     soil pit) better than POLARIS/SoilGrids. Enabled per tool via
-     config.soilAdjust (Field Scale). */
-  const soilModeSel = selectInput({
-    options: [{ value: 'product', label: 'From product (mapped)' }, { value: 'constant', label: 'Constant (enter values)' }],
-    value: 'product', onChange: (v) => { soilConstRow.hidden = v !== 'constant'; },
-  });
   const fcValIn = numInput({ value: 0.30, min: 0.05, max: 0.6, step: 0.01 });
   const wpValIn = numInput({ value: 0.12, min: 0, max: 0.5, step: 0.01 });
   const soilConstRow = el('div', {},
     ctrl('Field capacity', fcValIn.el, { unit: 'm³/m³' }),
     ctrl('Wilting point', wpValIn.el, { unit: 'm³/m³' }));
   soilConstRow.hidden = true;
-  if (config.soilAdjust) {
-    if (!gSoil) gSoil = group('Soil', { open: true });
-    gSoil.body.append(
-      el('div', { class: 'hint', style: { marginTop: '0.55rem', lineHeight: '1.4' } }, 'Constant values are applied uniformly to the whole field, replacing the mapped estimate.'),
-      ctrl('Soil water limits', soilModeSel.el),
-      soilConstRow,
-    );
+
+  let gSoil = null;
+  const soilNote = el('div', { class: 'hint', style: { marginTop: '0.4rem', lineHeight: '1.4' } }, state.soilSource ? state.soilSource.note : '');
+  if (soilOptions.length > 1) {
+    const soilSel = selectInput({ options: soilOptions, value: state.soilSource.id, onChange: onSoil });
+    gSoil = group('Soil', { open: true });
+    gSoil.body.append(ctrl('Source', soilSel.el), soilNote, soilConstRow);
   }
 
   /* ── Sidebar: region boundary ───────────────────────────────────────────
@@ -453,18 +426,28 @@ export function createSpatialTool(config) {
     weatherNote.textContent = state.weatherSource.note;
   }
 
-  /* Switching soil source only swaps which soil product the run pulls; the grid,
-     weather and VI are unaffected. */
+  /* Switching soil source only swaps which soil layer the run uses; the grid,
+     weather and VI are unaffected. 'Custom' has no mapped product and needs no
+     soil request: the uniform values are applied to every pixel using the
+     vegetation-index grid as the template. */
   function onSoil(id) {
-    state.soilSource = config.getSoilSource(id);
-    soilNote.textContent = state.soilSource.note;
+    if (id === 'custom') {
+      state.soilCustom = true;
+      soilNote.textContent = 'Uniform field capacity and wilting point applied to every pixel in the field — no soil product is fetched.';
+      soilConstRow.hidden = false;
+    } else {
+      state.soilCustom = false;
+      state.soilSource = config.getSoilSource(id);
+      soilNote.textContent = state.soilSource.note;
+      soilConstRow.hidden = true;
+    }
   }
 
   /* One line under the results map: the 5th–95th percentile range of the VI
      over every clear observation of pixels inside the drawn field, as a guide
      for the soil / full-cover endpoints (the extremes are water and shadow). */
   function viSummaryLine(data, index) {
-    const inField = data.soil.rootzone_fc;
+    const inField = data.soil.fc;
     let n = 0;
     for (const vi of data.viStack) for (let p = 0; p < vi.length; p++) if (Number.isFinite(vi[p]) && Number.isFinite(inField[p])) n++;
     if (!n) return '';
@@ -574,7 +557,7 @@ export function createSpatialTool(config) {
         const lon = rect.west + (c + 0.5) * dLon;
         const lat = rect.north - (r + 0.5) * dLat;
         const inside = isCircle ? state.map.distance([lat, lon], center) <= radius : rings.some((ring) => pointInRing(lon, lat, ring));
-        if (!inside) { const p = r * dataCols + c; soil.rootzone_fc[p] = NaN; soil.rootzone_wp[p] = NaN; soil.surface_fc[p] = NaN; soil.surface_wp[p] = NaN; }
+        if (!inside) { const p = r * dataCols + c; soil.fc[p] = NaN; soil.wp[p] = NaN; }
       }
     }
   }
@@ -588,8 +571,8 @@ export function createSpatialTool(config) {
     if (!start || !end || end < start) { setStatus('Pick a valid start/end.', 'error'); return; }
     const rect = currentRect();
     if (!rect) { setStatus('Draw a field boundary first.', 'error'); return; }
-    const soilConstant = config.soilAdjust && soilModeSel.get() === 'constant';
-    if (soilConstant && !(fcValIn.get() > wpValIn.get())) {
+    const useCustomSoil = config.soilAdjust && state.soilCustom;
+    if (useCustomSoil && !(fcValIn.get() > wpValIn.get())) {
       setStatus('Field capacity must be greater than wilting point.', 'error'); return;
     }
     runBtn.disabled = true;
@@ -601,6 +584,7 @@ export function createSpatialTool(config) {
         rect, cols: gsz.cols, rows: gsz.rows,
         start, end,
         vegSource: state.vegSource, soilSource: state.soilSource,
+        soilConstant: useCustomSoil ? { fc: fcValIn.get(), wp: wpValIn.get() } : null,
         weatherSource: state.weatherSource, weatherMode: state.vegSource.weather,
         maxCloud: cloudIn.get(),
         onProgress: (m) => setStatus(m),
@@ -612,10 +596,6 @@ export function createSpatialTool(config) {
       if (state.fieldShape && !(state.fieldShape instanceof window.L.Rectangle)) {
         clipSoilToShape(data.soil, rect, gsz.cols, gsz.rows, data.rows, data.cols, state.fieldShape);
       }
-
-      /* Constant soil override: replace the mapped FC/WP with the user's uniform
-         values across the field footprint (validated above; product mask kept). */
-      if (soilConstant) overrideSoilConstant(data.soil, fcValIn.get(), wpValIn.get());
 
       results.setViNote(viSummaryLine(data, sourceIndex(state.vegSource)));
       setStatus('Building Kcb from vegetation index…');

@@ -43,11 +43,13 @@ runs. For larger areas use the Mesoscale tool.</p>
       is held. After a run the index range over the field (extremes and 5th /
       95th percentiles) is shown under the map to help tune both endpoints;
       negative values are water or shadow, not bare soil.</td></tr>
-  <tr><td>Soil</td><td><strong>POLARIS</strong> (30 m, CONUS): sand, clay and
-      organic matter → field capacity &amp; wilting point via the Saxton &amp;
-      Rawls (2006) pedotransfer functions. The <strong>surface</strong>
-      (evaporation) layer is the 0–15 cm mean; the <strong>root zone</strong> is
-      the 0–100 cm mean.</td></tr>
+  <tr><td>Soil</td><td><strong>POLARIS</strong> (30 m, CONUS) or
+      <strong>SoilGrids</strong> (250 m, global): sand, clay and organic matter,
+      as the 0–100 cm depth-weighted mean → a single field capacity &amp; wilting
+      point via the Saxton &amp; Rawls (2006) pedotransfer functions (one
+      homogeneous soil for the whole profile, per FAO-56). Or pick
+      <strong>Custom</strong> to apply a field capacity and wilting point you
+      enter uniformly across the field.</td></tr>
   <tr><td>Weather</td><td><strong>GRIDMET</strong> (~4 km) as one daily series
       at the field centroid, applied to every pixel — appropriate at field
       scale, where weather is effectively uniform.</td></tr>

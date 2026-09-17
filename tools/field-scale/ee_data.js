@@ -96,30 +96,38 @@ export async function collectGrid(ee, params) {
   const coarse = cellM >= 1000;
   const aggProj = (nativeM) => ee.Projection('EPSG:4326').atScale(Math.max(nativeM || cellM, cellM / 20));
 
-  /* ── Soil: sand / clay / organic matter as 0–15 cm (surface) and 0–100 cm
-     (profile) depth means, all six bands in ONE image and ONE request (depth
-     averaging is server-side; the soil fetch is the slow step). ─────────── */
-  say(`Sampling ${soilSrc.label} soil texture…`);
-  /* A projection built explicitly by scale is robust even when the source
-     image reports no usable default projection. */
-  const soilProj = coarse ? aggProj(soilSrc.nativeM || 250) : null;
-  const keys = ['sand', 'clay', 'om'];
-  const soilImg = ee.Image.cat(keys.map((k) =>
-    soilSrc.propImage(ee, soilSrc.props[k]).rename([`${k}_surface`, `${k}_profile`])));
-  const sp = await sampleRect(ee, soilImg, eeRect, transform, soilProj);
+  /* ── Soil ─────────────────────────────────────────────────────────────
+     A mapped product (POLARIS / SoilGrids) is sampled onto the grid — sand /
+     clay / organic matter as a single 0–100 cm depth-weighted mean per property
+     (three bands in ONE request) — and run through the Saxton-Rawls PTF to a
+     single fc/wp (FAO-56's homogeneous soil).
 
-  /* Common shape (defensive crop) across the six returned bands. */
-  let rows = Infinity, cols = Infinity;
-  for (const k of keys) {
-    for (const d of ['surface', 'profile']) {
-      const a = sp[`${k}_${d}`];
+     A 'custom' run (params.soilConstant = { fc, wp }) needs NO soil request at
+     all: the field capacity and wilting point are uniform constants, so the soil
+     grids are built AFTER the vegetation index, reusing the VI grid itself as
+     the template (same footprint and geometry, one fewer Earth Engine fetch and
+     no misleading "sampling soil" status). ─────────────────────────────────── */
+  const customSoil = params.soilConstant || null;
+  let rows = Infinity, cols = Infinity, soil = null;
+  if (!customSoil) {
+    say(`Sampling ${soilSrc.label} soil texture…`);
+    /* A projection built explicitly by scale is robust even when the source
+       image reports no usable default projection. */
+    const soilProj = coarse ? aggProj(soilSrc.nativeM || 250) : null;
+    const keys = ['sand', 'clay', 'om'];
+    const soilImg = ee.Image.cat(keys.map((k) =>
+      soilSrc.propImage(ee, soilSrc.props[k]).rename([k])));
+    const sp = await sampleRect(ee, soilImg, eeRect, transform, soilProj);
+
+    /* Common shape (defensive crop) across the three returned bands. */
+    for (const k of keys) {
+      const a = sp[k];
       if (!a || !a.length) throw new Error(`${soilSrc.label} ${k} returned no pixels for this area.`);
       rows = Math.min(rows, a.length); cols = Math.min(cols, a[0].length);
     }
+    const band = (k) => flattenGrid(crop2d(sp[k], rows, cols)).data;
+    soil = soilLimitsFromBands(band('sand'), band('clay'), band('om'), soilSrc.conv);
   }
-  const band = (k, d) => flattenGrid(crop2d(sp[`${k}_${d}`], rows, cols)).data;
-  const two = (k) => ({ surface: band(k, 'surface'), profile: band(k, 'profile') });
-  const soil = soilLimitsFromBands(two('sand'), two('clay'), two('om'), soilSrc.conv);
 
   /* ── Vegetation index: clear observations, aligned to the soil grid ──────
      Driven by the veg source (veg_sources.js): collection, band name for the
@@ -155,7 +163,9 @@ export async function collectGrid(ee, params) {
      a 13k-pixel field is then ~15 requests instead of 230, so every composite
      can be used — a sparse subsample (the old 40-date cap) let one cloudy
      composite rule the Kcb of a whole season. */
-  const nPix = rows * cols;
+  /* Custom soil hasn't set rows/cols yet (the VI grid does, below); estimate the
+     pixel count from the requested grid just to size the request batches. */
+  const nPix = Number.isFinite(rows) ? rows * cols : targetRows * targetCols;
   const perDate = src.qa ? 2 : 1;
   const batch = Math.max(1, Math.min(16, Math.floor(262144 / (nPix * perDate))));
   const obsDates = [];
@@ -170,6 +180,9 @@ export async function collectGrid(ee, params) {
     for (let k = 0; k < chunk.length; k++) {
       const viRaw = props[`VI_${k}`];
       if (!viRaw) continue;
+      /* Custom soil: the first clear VI grid sets the shared grid shape — the
+         template for the constant soil built after this loop. */
+      if (customSoil && !Number.isFinite(rows)) { rows = viRaw.length; cols = viRaw[0].length; }
       const viG = flattenGrid(crop2d(viRaw, rows, cols)).data;
       const qaG = src.qa ? flattenGrid(crop2d(props[`QA_${k}`], rows, cols)).data : null;
       const vi = viFromBands(viG, qaG, src.qa ? src.qa.max : 1, src.scaleFactor);
@@ -177,6 +190,17 @@ export async function collectGrid(ee, params) {
     }
   }
   if (!obsDates.length) throw new Error(`No clear ${src.label} observations in this area/period. Widen the dates.`);
+
+  /* Custom soil: now that the VI grid has set rows/cols, build uniform FC/WP
+     grids on that same template. Every pixel gets the constant; the polygon clip
+     (in the tool) and the per-pixel VI mask decide which of them actually run. */
+  if (customSoil) {
+    const n = rows * cols;
+    soil = {
+      fc: new Float32Array(n).fill(customSoil.fc),
+      wp: new Float32Array(n).fill(customSoil.wp),
+    };
+  }
 
   /* ── Weather: dispatch on the selected source (weather_sources.js). Either
      one series at the AOI centroid, broadcast across the field ('centroid'), or

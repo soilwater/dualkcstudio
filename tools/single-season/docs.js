@@ -8,8 +8,11 @@ export const DOCS = {
   title: 'Single Season',
   html: `
 <p>Simulates one crop's daily soil water balance with the FAO-56 dual crop
-coefficient method: <code>ETc = (Ks·Kcb + Ke)·ETo</code>, tracked over a
-three-layer soil profile (surface evaporation layer, root zone, subsoil).</p>
+coefficient method: <code>ETc = (Ks·Kcb + Ke)·ETo</code>. The soil is a single
+bucket with one field capacity and wilting point; it is split into three
+compartments — a surface evaporation layer, the root zone, and the subsoil
+below it — only to partition water into evaporation, transpiration and deep
+storage, not to model three independent layers.</p>
 
 <h3>Workflow</h3>
 <ol>

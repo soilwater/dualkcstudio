@@ -44,37 +44,31 @@ export function flattenGrid(arr2d) {
 }
 
 /**
- * Per-pixel field capacity & wilting point for the surface (evaporation, Ze)
- * layer and the root zone (Zr), from a soil source's depth-mean texture.
+ * Per-pixel field capacity & wilting point for the (single, homogeneous) soil,
+ * from a soil source's depth-weighted root-zone texture. FAO-56 uses one fc/wp
+ * for the whole profile — evaporation layer, root zone and subsoil alike — so
+ * the PTF is applied once, to the root-zone depth mean.
  *
- *   sand, clay, om : { surface, profile } — each a Float32Array(nPixels) of RAW
- *                    band values (the 0–15 cm and 0–100 cm depth means built
- *                    server-side in soil_sources.js)
+ *   sand, clay, om : each a Float32Array(nPixels) of RAW band values (the
+ *                    depth-weighted 0–100 cm mean built server-side in
+ *                    soil_sources.js)
  *   conv           : { sand, clay, om } functions mapping raw band values to
  *                    percent / OM-percent (SOILGRIDS_CONV, POLARIS_CONV)
  *
- * The PTF is applied once to the surface mean (→ Ze) and once to the profile
- * mean (→ Zr). A pixel with no valid texture is NaN there.
+ * A pixel with no valid texture is NaN, which propagates so run_grid skips it.
  */
 export function soilLimitsFromBands(sand, clay, om, conv = SOILGRIDS_CONV) {
-  const nPixels = sand.surface.length;
-  const rootzone_fc = new Float32Array(nPixels).fill(NaN);
-  const rootzone_wp = new Float32Array(nPixels).fill(NaN);
-  const surface_fc = new Float32Array(nPixels).fill(NaN);
-  const surface_wp = new Float32Array(nPixels).fill(NaN);
-
-  const limits = (s, c, o) => {
-    if (!isData(s) || !isData(c)) return null;
-    return saxtonRawls2006(conv.sand(s), conv.clay(c), isData(o) ? conv.om(o) : 0);
-  };
+  const nPixels = sand.length;
+  const fc = new Float32Array(nPixels).fill(NaN);
+  const wp = new Float32Array(nPixels).fill(NaN);
 
   for (let p = 0; p < nPixels; p++) {
-    const surf = limits(sand.surface[p], clay.surface[p], om.surface[p]);
-    if (surf) { surface_fc[p] = surf.fc; surface_wp[p] = surf.wp; }
-    const prof = limits(sand.profile[p], clay.profile[p], om.profile[p]);
-    if (prof) { rootzone_fc[p] = prof.fc; rootzone_wp[p] = prof.wp; }
+    const s = sand[p], c = clay[p], o = om[p];
+    if (!isData(s) || !isData(c)) continue;
+    const lim = saxtonRawls2006(conv.sand(s), conv.clay(c), isData(o) ? conv.om(o) : 0);
+    fc[p] = lim.fc; wp[p] = lim.wp;
   }
-  return { rootzone_fc, rootzone_wp, surface_fc, surface_wp };
+  return { fc, wp };
 }
 
 /**

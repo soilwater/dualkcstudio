@@ -5,20 +5,15 @@
  * Owned by Mesoscale alone (Field Scale has its own copy). SoilGrids (ISRIC,
  * 250 m, global) is the mesoscale soil source — it mean-aggregates gently onto
  * the coarse grids. Each source builds, for a property (sand / clay / organic
- * matter), a TWO-band image whose depth means are computed server-side:
- *   surface — thickness-weighted mean over 0–15 cm (the evaporation layer, Ze)
- *   profile — thickness-weighted mean over 0–100 cm (the root-zone proxy, Zr)
- * Doing the depth averaging in Earth Engine (rather than fetching all six depth
- * layers and averaging on the client) cuts the download and the coarse-grid
- * aggregation to two bands per property — the soil fetch is the slow step, so
- * this is where the time goes. ee_data.js samples the image; assemble.js runs
- * the Saxton-Rawls PTF on each depth mean to get FC/WP.
+ * matter), a SINGLE-band image whose value is the thickness-weighted 0–100 cm
+ * depth mean, computed server-side. FAO-56 uses one field capacity / wilting
+ * point for the whole homogeneous profile, so a single depth-weighted texture
+ * is all that's needed; assemble.js runs the Saxton-Rawls PTF on it to get FC/WP.
  */
 
 import { SOILGRIDS_CONV, SOILGRIDS_DEPTH } from '../spatial_shared/assemble.js';
 
-/* Depth layers and their thicknesses (cm). Surface = 0–15 cm; profile = 0–100. */
-const SURFACE = [['0_5', 5], ['5_15', 10]];
+/* Depth layers and their thicknesses (cm) for the 0–100 cm root-zone mean. */
 const PROFILE = [['0_5', 5], ['5_15', 10], ['15_30', 15], ['30_60', 30], ['60_100', 40]];
 
 /** Thickness-weighted mean of a set of depth bands → a single-band image. */
@@ -29,9 +24,9 @@ function wmean(band, layers) {
   return sum.divide(total);
 }
 
-/** [surface, profile] depth-mean bands for a property, given a per-depth accessor. */
-function twoBand(band) {
-  return wmean(band, SURFACE).rename('surface').addBands(wmean(band, PROFILE).rename('profile'));
+/** The 0–100 cm depth-mean band for a property, given a per-depth accessor. */
+function profileBand(band) {
+  return wmean(band, PROFILE);
 }
 
 export const SOIL_SOURCES = {
@@ -45,7 +40,7 @@ export const SOIL_SOURCES = {
     /* One image per property carries a band per depth. */
     propImage(ee, eeProp) {
       const img = ee.Image(`projects/soilgrids-isric/${eeProp}_mean`);
-      return twoBand((id) => img.select(`${eeProp}_${SOILGRIDS_DEPTH[id]}_mean`));
+      return profileBand((id) => img.select(`${eeProp}_${SOILGRIDS_DEPTH[id]}_mean`));
     },
     note: 'ISRIC SoilGrids 250 m soil texture → field capacity and wilting point via Saxton-Rawls, sampled per pixel across the region.',
   },

@@ -76,9 +76,11 @@ import { resolveOptions } from './presets.js';
 function at(v, i) { return Array.isArray(v) ? v[i] : v; }
 function isNum(v) { return typeof v === 'number' && isFinite(v); }
 
-// FAO-56 Eq. 73 — total and readily evaporable water.
+// FAO-56 Eq. 73 — total and readily evaporable water. The evaporation layer is
+// a sub-volume of the (single, homogeneous) soil, so it uses the same fc/wp as
+// the root zone — only the depth (Ze) and the 0.5·wp term differ.
 function evaporableWater(soil, residueCover) {
-  let TEWbare = Math.max(1000.0 * (soil.surface_fc - 0.5 * soil.surface_wp) * soil.Ze, 1.0);
+  let TEWbare = Math.max(1000.0 * (soil.fc - 0.5 * soil.wp) * soil.Ze, 1.0);
   let TEW = TEWbare * Math.max(1.0 - 0.5 * residueCover, 0.1);
   let REW = Math.min(soil.REW_frac * TEW, TEW);
   return { TEW, REW };
@@ -97,17 +99,17 @@ function validate(soil, crop, management, df, options) {
   let err = [];
   let N = df.length;
 
-  let needSoil = ['surface_fc', 'surface_wp', 'surface_ini', 'rootzone_fc', 'rootzone_wp',
-    'rootzone_ini', 'Ze', 'REW_frac', 'Zr_profile', 'subsoil_ini'];
+  let needSoil = ['fc', 'wp', 'ini', 'Ze', 'REW_frac', 'Zr_profile'];
   for (let i = 0; i < needSoil.length; i++) {
     let k = needSoil[i];
     if (!isNum(soil[k])) err.push(`soil.${k} is required and must be a finite number.`);
   }
-  if (isNum(soil.rootzone_fc) && isNum(soil.rootzone_wp) && soil.rootzone_fc <= soil.rootzone_wp) {
-    err.push('soil.rootzone_fc must exceed soil.rootzone_wp.');
+  if (isNum(soil.fc) && isNum(soil.wp) && soil.fc <= soil.wp) {
+    err.push('soil.fc must exceed soil.wp.');
   }
-  if (isNum(soil.subsoil_ini) && isNum(soil.rootzone_fc) && soil.subsoil_ini > soil.rootzone_fc + 1e-9) {
-    err.push('soil.subsoil_ini cannot exceed soil.rootzone_fc.');
+  if (isNum(soil.ini) && isNum(soil.fc) && isNum(soil.wp)
+      && (soil.ini > soil.fc + 1e-9 || soil.ini < soil.wp - 1e-9)) {
+    err.push('soil.ini must lie between soil.wp and soil.fc.');
   }
 
   function arrOk(v, name) {
@@ -178,8 +180,11 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
   let warnings = [];
 
   // PART 1 — Crop and canopy series
-  let rz_fc = soil.rootzone_fc;
-  let rz_wp = soil.rootzone_wp;
+  // Single, homogeneous soil: one fc/wp/ini characterises the evaporation
+  // layer, the root zone, and the subsoil alike (FAO-56's default; layered
+  // data, if any, is depth-weighted into this single pair upstream).
+  let rz_fc = soil.fc;
+  let rz_wp = soil.wp;
   let Zr_profile = soil.Zr_profile;
   let Ze = soil.Ze;
 
@@ -260,9 +265,9 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
   // PART 2 — Daily soil water balance (FAO-56 Ch. 7 and Ch. 8)
   let profile = makeSoilProfile();
   let state = profile.init({
-    rz_fc, rz_ini: soil.rootzone_ini, Zr0: Zr[0], Zr_profile, subsoil_ini: soil.subsoil_ini,
+    rz_fc, rz_ini: soil.ini, Zr0: Zr[0], Zr_profile, subsoil_ini: soil.ini,
   });
-  let De = 1000.0 * (soil.surface_fc - soil.surface_ini) * Ze;
+  let De = 1000.0 * (soil.fc - soil.ini) * Ze;
 
   let Ke = new Array(N);
   let Ks = new Array(N);
@@ -416,7 +421,7 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
     r.De = DeOut[n]; r.Dr = DrOut[n]; r.Ss = SsOut[n];
     r.TEW = TEWout[n]; r.REW = REWout[n]; r.TAW = TAWout[n]; r.RAW = RAWout[n];
     r.p_used = p_used[n];
-    r.Se = 1000.0 * soil.surface_fc * Ze - DeOut[n];
+    r.Se = 1000.0 * soil.fc * Ze - DeOut[n];
     r.Sr = rootWater(DrOut[n], Zr[n], rz_fc);
     r.Sr_paw = Math.max(r.Sr - 1000.0 * rz_wp * Zr[n], 0.0);
     let Zs_n = Math.max(Zr_profile - Zr[n], 0.0);

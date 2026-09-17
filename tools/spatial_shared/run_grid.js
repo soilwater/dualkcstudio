@@ -26,8 +26,8 @@ export const DEFAULT_DAILY_VARS = ['Kcb', 'Ke', 'Dr', 'TAW', 'p_used', 'Sr_paw',
  * Run the grid.
  *
  *   grid    : { cols, rows, nPixels }
- *   soil    : { rootzone_fc, rootzone_wp, surface_fc, surface_wp } — each
- *             Float32Array(nPixels); NaN marks a masked pixel
+ *   soil    : { fc, wp } — each Float32Array(nPixels) of the single (homogeneous)
+ *             soil field capacity / wilting point; NaN marks a masked pixel
  *   scalars : field-wide soil { Ze, REW_frac, Zr_profile, faw0 } where faw0 is
  *             the initial fraction of available water (0 = wilting, 1 = FC)
  *   kcbStack: Float32Array(T*nPixels) daily per-pixel Kcb (from kcb_grid.js)
@@ -52,7 +52,7 @@ export function runGrid(grid, soil, scalars, kcbStack, dates, weather, crop, mgm
      `weather` array is broadcast to every pixel (field scale). */
   const wx = opts.weatherStacks || null;
 
-  const { rootzone_fc, rootzone_wp, surface_fc, surface_wp } = soil;
+  const { fc, wp } = soil;
   const { Ze, REW_frac, Zr_profile, faw0 } = scalars;
   const f0 = isFinite(faw0) ? Math.min(Math.max(faw0, 0), 1) : 0.7;
 
@@ -72,7 +72,7 @@ export function runGrid(grid, soil, scalars, kcbStack, dates, weather, crop, mgm
     /* Spatial weather: also require finite weather (a pixel off GRIDMET/CONUS
        coverage is NaN and must be skipped). */
     const wxOk = !wx || (isFinite(wx.eto[p]) && isFinite(wx.prcp[p]));
-    if (isFinite(rootzone_fc[p]) && isFinite(rootzone_wp[p]) && isFinite(kcbStack[p]) && wxOk) {
+    if (isFinite(fc[p]) && isFinite(wp[p]) && isFinite(kcbStack[p]) && wxOk) {
       validMask[p] = 1;
       todo.push(p);
     }
@@ -88,16 +88,10 @@ export function runGrid(grid, soil, scalars, kcbStack, dates, weather, crop, mgm
 
   for (let i = 0; i < nValid; i++) {
     const p = todo[i];
-    const rzFc = rootzone_fc[p], rzWp = rootzone_wp[p];
-    const sfFc = surface_fc[p], sfWp = surface_wp[p];
-    const rzIni = rzWp + f0 * (rzFc - rzWp);
-    const sfIni = sfWp + f0 * (sfFc - sfWp);
+    const fcP = fc[p], wpP = wp[p];
+    const iniP = wpP + f0 * (fcP - wpP);
 
-    const pixelSoil = {
-      surface_fc: sfFc, surface_wp: sfWp, surface_ini: sfIni,
-      rootzone_fc: rzFc, rootzone_wp: rzWp, rootzone_ini: rzIni,
-      subsoil_ini: rzIni, Ze, REW_frac, Zr_profile,
-    };
+    const pixelSoil = { fc: fcP, wp: wpP, ini: iniP, Ze, REW_frac, Zr_profile };
 
     for (let t = 0; t < T; t++) kcbCol[t] = kcbStack[t * nPixels + p];
     const pixelCrop = { ...crop, Kcb: kcbCol };

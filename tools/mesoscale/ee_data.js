@@ -96,30 +96,28 @@ export async function collectGrid(ee, params) {
   const coarse = cellM >= 1000;
   const aggProj = (nativeM) => ee.Projection('EPSG:4326').atScale(Math.max(nativeM || cellM, cellM / 20));
 
-  /* ── Soil: sand / clay / organic matter as 0–15 cm (surface) and 0–100 cm
-     (profile) depth means, all six bands in ONE image and ONE request (depth
-     averaging is server-side; the soil fetch is the slow step). ─────────── */
+  /* ── Soil: sand / clay / organic matter as a single 0–100 cm depth-weighted
+     mean per property (three bands in ONE request; depth averaging is
+     server-side), run through the Saxton-Rawls PTF to a single fc/wp (FAO-56's
+     homogeneous soil). ──────────────────────────────────────────────────── */
   say(`Sampling ${soilSrc.label} soil texture…`);
   /* A projection built explicitly by scale is robust even when the source
      image reports no usable default projection. */
   const soilProj = coarse ? aggProj(soilSrc.nativeM || 250) : null;
   const keys = ['sand', 'clay', 'om'];
   const soilImg = ee.Image.cat(keys.map((k) =>
-    soilSrc.propImage(ee, soilSrc.props[k]).rename([`${k}_surface`, `${k}_profile`])));
+    soilSrc.propImage(ee, soilSrc.props[k]).rename([k])));
   const sp = await sampleRect(ee, soilImg, eeRect, transform, soilProj);
 
-  /* Common shape (defensive crop) across the six returned bands. */
+  /* Common shape (defensive crop) across the three returned bands. */
   let rows = Infinity, cols = Infinity;
   for (const k of keys) {
-    for (const d of ['surface', 'profile']) {
-      const a = sp[`${k}_${d}`];
-      if (!a || !a.length) throw new Error(`${soilSrc.label} ${k} returned no pixels for this area.`);
-      rows = Math.min(rows, a.length); cols = Math.min(cols, a[0].length);
-    }
+    const a = sp[k];
+    if (!a || !a.length) throw new Error(`${soilSrc.label} ${k} returned no pixels for this area.`);
+    rows = Math.min(rows, a.length); cols = Math.min(cols, a[0].length);
   }
-  const band = (k, d) => flattenGrid(crop2d(sp[`${k}_${d}`], rows, cols)).data;
-  const two = (k) => ({ surface: band(k, 'surface'), profile: band(k, 'profile') });
-  const soil = soilLimitsFromBands(two('sand'), two('clay'), two('om'), soilSrc.conv);
+  const band = (k) => flattenGrid(crop2d(sp[k], rows, cols)).data;
+  const soil = soilLimitsFromBands(band('sand'), band('clay'), band('om'), soilSrc.conv);
 
   /* ── Vegetation index: clear observations, aligned to the soil grid ──────
      Driven by the veg source (veg_sources.js): collection, band name for the

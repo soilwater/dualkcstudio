@@ -5,25 +5,16 @@
  * Owned by Field Scale alone (Mesoscale has its own copy). POLARIS (30 m, CONUS)
  * is the default; SoilGrids (250 m, global) is offered for fields outside CONUS.
  * Like veg_sources.js, adding a soil product is a config entry. Each source
- * builds, for a property (sand / clay / organic matter), a TWO-band image whose
- * depth means are computed server-side:
- *   surface — thickness-weighted mean over 0–15 cm (the evaporation layer, Ze)
- *   profile — thickness-weighted mean over 0–100 cm (the root-zone proxy, Zr)
- * Doing the depth averaging in Earth Engine (rather than fetching all six depth
- * layers and averaging on the client) cuts the download and the coarse-grid
- * aggregation to two bands per property — the soil fetch is the slow step, so
- * this is where the time goes. ee_data.js samples the image; assemble.js runs
- * the Saxton-Rawls PTF on each depth mean to get FC/WP.
- *
- * A soil source is paired with a veg source (veg_sources.js `soil` field) so it
- * matches the run's resolution: POLARIS (30 m, CONUS) with the 30 m Landsat
- * field runs, SoilGrids (250 m, global) with the mesoscale runs.
+ * builds, for a property (sand / clay / organic matter), a SINGLE-band image
+ * whose value is the thickness-weighted 0–100 cm depth mean, computed
+ * server-side. FAO-56 uses one field capacity / wilting point for the whole
+ * homogeneous profile, so a single depth-weighted texture is all that's needed;
+ * assemble.js runs the Saxton-Rawls PTF on it to get FC/WP.
  */
 
 import { SOILGRIDS_CONV, SOILGRIDS_DEPTH } from '../spatial_shared/assemble.js';
 
-/* Depth layers and their thicknesses (cm). Surface = 0–15 cm; profile = 0–100. */
-const SURFACE = [['0_5', 5], ['5_15', 10]];
+/* Depth layers and their thicknesses (cm) for the 0–100 cm root-zone mean. */
 const PROFILE = [['0_5', 5], ['5_15', 10], ['15_30', 15], ['30_60', 30], ['60_100', 40]];
 
 /** Thickness-weighted mean of a set of depth bands → a single-band image. */
@@ -34,9 +25,9 @@ function wmean(band, layers) {
   return sum.divide(total);
 }
 
-/** [surface, profile] depth-mean bands for a property, given a per-depth accessor. */
-function twoBand(band) {
-  return wmean(band, SURFACE).rename('surface').addBands(wmean(band, PROFILE).rename('profile'));
+/** The 0–100 cm depth-mean band for a property, given a per-depth accessor. */
+function profileBand(band) {
+  return wmean(band, PROFILE);
 }
 
 /* POLARIS: sand/clay in %, organic matter as log10(%) → 10^v. (CONUS only.) */
@@ -59,7 +50,7 @@ export const SOIL_SOURCES = {
     /* POLARIS is an ImageCollection per property, one image per depth. */
     propImage(ee, eeProp) {
       const coll = ee.ImageCollection(`projects/sat-io/open-datasets/polaris/${eeProp}_mean`);
-      return twoBand((id) => ee.Image(coll.filter(ee.Filter.stringContains('system:index', id)).first()));
+      return profileBand((id) => ee.Image(coll.filter(ee.Filter.stringContains('system:index', id)).first()));
     },
     note: 'POLARIS 30 m soil texture (sand / clay / organic matter) → field capacity and wilting point via Saxton-Rawls. CONUS only.',
   },
@@ -73,7 +64,7 @@ export const SOIL_SOURCES = {
     /* One image per property carries a band per depth. */
     propImage(ee, eeProp) {
       const img = ee.Image(`projects/soilgrids-isric/${eeProp}_mean`);
-      return twoBand((id) => img.select(`${eeProp}_${SOILGRIDS_DEPTH[id]}_mean`));
+      return profileBand((id) => img.select(`${eeProp}_${SOILGRIDS_DEPTH[id]}_mean`));
     },
     note: 'ISRIC SoilGrids 250 m soil texture → field capacity and wilting point via Saxton-Rawls. Global — use for fields outside CONUS.',
   },

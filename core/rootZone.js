@@ -21,13 +21,13 @@
  *   root      0 .. Zr          Dr   depletion below field capacity, mm
  *   subsoil   Zr .. Zr_profile Ss   water content, mm
  *
- * The root zone and the subsoil are two compartments of ONE homogeneous
- * body of soil below the surface layer, both characterised by rootzone_fc
- * and rootzone_wp. They are deliberately NOT given separate retention
- * properties: the boundary between them moves every day, and if the two
- * sides had different fc/wp the profile's total capacity would jump each
- * time it moved. Only the INITIAL water content differs (soil.subsoil_ini),
- * which is where the real information is anyway.
+ * The surface, root zone and subsoil are compartments of ONE homogeneous
+ * soil, all characterised by the single soil.fc / soil.wp. They are
+ * deliberately NOT given separate retention properties: the root/subsoil
+ * boundary moves every day, and if the two sides had different fc/wp the
+ * profile's total capacity would jump each time it moved. Initial water is a
+ * single soil.ini for the whole profile (passed here as ctx.rz_ini and
+ * ctx.subsoil_ini).
  *
  * Every transfer below is written to be mass-conserving.
  */

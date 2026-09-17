@@ -98,7 +98,7 @@ export function runOneOccurrence({ weatherDf, occurrence, isBaseline, cropPreset
 
   const rows = result.rows;
   const last = rows[rows.length - 1];
-  const wholeTAW = 1000 * (soil.rootzone_fc - soil.rootzone_wp) * soil.Zr_profile;
+  const wholeTAW = 1000 * (soil.fc - soil.wp) * soil.Zr_profile;
   const wholePaw = (r) => r.Sr_paw + r.Ss_paw;
   const finalPawFraction = wholeTAW > 0 ? Math.max(0, Math.min(1, wholePaw(last) / wholeTAW)) : 0;
 
