@@ -25,7 +25,7 @@
  *   scaleFactor  — band value → index units (1 for a float composite)
  *   qa           — { band, max } to mask by a reliability band, or null when
  *                  build() already masks clouds (mask no-data only)
- *   scaleM       — grid resolution in metres (one per source; a grid coarser
+ *   scaleM       — grid resolution in meters (one per source; a grid coarser
  *                  than nativeM is a MEAN of the source pixels)
  *   nativeM      — source resolution, for mean aggregation onto a coarser grid
  *
@@ -35,7 +35,7 @@
 
 /* EVI's denominator (NIR + 6 RED − 7.5 BLUE + 1) can approach zero over water,
    deep shadow and cloud edges, throwing values like −90 or +17. EVI is defined
-   on [−1, 1]; anything outside is a numerical artefact, not vegetation, and is
+   on [−1, 1]; anything outside is a numerical artifact, not vegetation, and is
    masked like a cloud. */
 const inRange = (evi) => evi.gte(-1).and(evi.lte(1));
 

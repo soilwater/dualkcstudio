@@ -108,7 +108,7 @@ function create() {
 
   const root = el('div', { class: 'view' }, wb.el);
 
-  /* ── Behaviour ──────────────────────────────────────────────────────── */
+  /* ── Behavior ──────────────────────────────────────────────────────── */
 
   function showError(msg) { statusEl.innerHTML = ''; statusEl.append(el('div', { style: { marginTop: '0.4rem' } }, callout('error', msg))); }
 

@@ -6,7 +6,7 @@
  * Five daily reference-ET (ETo) methods, each keyed to the variables a user
  * actually has. Penman-Monteith reuses the tested core implementation; the
  * rest are standard published equations built from the same FAO-56 helper
- * relations (saturation vapour pressure, its slope, the psychrometric
+ * relations (saturation vapor pressure, its slope, the psychrometric
  * constant, extraterrestrial and net radiation) so they stay consistent
  * with the engine's own physics. No water-balance code lives here.
  *
@@ -61,7 +61,7 @@ function netRadiation(row, loc, doy) {
   return Rns - Rnl;
 }
 
-/** Vapour-pressure deficit (kPa): the column if present, else from RH + T. */
+/** Vapor-pressure deficit (kPa): the column if present, else from RH + T. */
 function vpdOf(row) {
   if (isFinite(row.vpd)) return Math.max(row.vpd, 0);
   if ([row.tmin, row.tmax, row.rmin, row.rmax].every(isFinite)) {
@@ -122,7 +122,7 @@ function etoPriestleyTaylor(row, loc, doy) {
   return Math.max(1.26 * (D / (D + g)) * (Rn / LAMBDA), 0);
 }
 
-/* ── Method catalogue ──────────────────────────────────────────────────── */
+/* ── Method catalog ──────────────────────────────────────────────────── */
 
 export const METHODS = [
   { id: 'pm', label: 'Penman-Monteith (FAO-56)', fn: etoPM, needs: ['tmin', 'tmax', 'humidity', 'srad', 'wspd'], site: ['lat', 'elev'],
@@ -139,7 +139,7 @@ export const METHODS = [
 
 export const METHOD_BY_ID = Object.fromEntries(METHODS.map(m => [m.id, m]));
 
-/** Which recognised weather variables are present (≥1 finite value). */
+/** Which recognized weather variables are present (≥1 finite value). */
 export function detectColumns(parsed) {
   const has = (k) => parsed.keys.includes(k) && parsed.rows.some(r => isFinite(r[k]));
   const cols = {

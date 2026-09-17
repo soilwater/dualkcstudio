@@ -1,6 +1,6 @@
 /* Copyright (c) August 2026 Andres Patrignani. */
 /**
- * components.js — the control-panel vocabulary, modelled on a lil-gui /
+ * components.js — the control-panel vocabulary, modeled on a lil-gui /
  * three.js-editor sidebar: collapsible uppercase-headed groups, tight
  * label→control rows, compact inputs, square neon checkboxes. Plain DOM +
  * tiny callbacks; no framework.

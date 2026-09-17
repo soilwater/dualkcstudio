@@ -72,9 +72,9 @@ long summer fallow after wheat sits at the low end.</p>
   <li><strong>Cycle timeline</strong> — the stitched Kcb curve of one cycle,
       colored by block. It updates live as you edit.</li>
   <li><strong>Rotation wheel</strong> — one revolution is one cycle: the
-      outer ring shows the components (block colours), the middle ring the
+      outer ring shows the components (block colors), the middle ring the
       calendar months from the start date, the inner ring the rotation year.
-      The centre shows the share of the cycle under a crop.</li>
+      The center shows the share of the cycle under a crop.</li>
   <li>The daily result charts are the same set as Single Season, over the
       whole run — drag to zoom into any season; all charts pan together.</li>
 </ul>

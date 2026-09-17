@@ -192,7 +192,7 @@ export async function collectGrid(ee, params) {
     return { rows, cols, soil, obsDates, viStack, dates: w.dates, weatherStacks: w.stacks, nViDates: obsDates.length };
   }
 
-  /* Centroid: one series at the field centre, broadcast across the grid. */
+  /* Centroid: one series at the field center, broadcast across the grid. */
   let wx;
   if (W.kind === 'fetch') {
     say(`Fetching ${W.label} weather…`);

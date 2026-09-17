@@ -120,7 +120,7 @@ function create() {
 
   const root = el('div', { class: 'view' }, wb.el);
 
-  /* ── Behaviour ──────────────────────────────────────────────────────── */
+  /* ── Behavior ──────────────────────────────────────────────────────── */
 
   function syncAnalysisVisibility() {
     const m = modeSeg.get();

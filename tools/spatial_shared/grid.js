@@ -14,19 +14,19 @@ const R_EARTH = 6378137.0;               /* WGS-84 equatorial radius, m */
 const DEG = Math.PI / 180.0;
 
 /**
- * Metres per degree of longitude / latitude at a given latitude (spherical
+ * Meters per degree of longitude / latitude at a given latitude (spherical
  * approximation — only used for area/size reporting, never for reprojection).
  */
-export function metresPerDegree(lat) {
+export function metersPerDegree(lat) {
   const mPerLat = R_EARTH * DEG;                    /* ~111.32 km, ~constant */
   const mPerLon = R_EARTH * DEG * Math.cos(lat * DEG);
   return { mPerLat, mPerLon };
 }
 
-/** A rectangle {west,south,east,north} → its width/height in metres. */
-export function rectMetres(rect) {
+/** A rectangle {west,south,east,north} → its width/height in meters. */
+export function rectMeters(rect) {
   const midLat = 0.5 * (rect.south + rect.north);
-  const { mPerLat, mPerLon } = metresPerDegree(midLat);
+  const { mPerLat, mPerLon } = metersPerDegree(midLat);
   return {
     widthM: Math.abs(rect.east - rect.west) * mPerLon,
     heightM: Math.abs(rect.north - rect.south) * mPerLat,
@@ -35,7 +35,7 @@ export function rectMetres(rect) {
 
 /** Rectangle area in hectares. */
 export function rectHectares(rect) {
-  const { widthM, heightM } = rectMetres(rect);
+  const { widthM, heightM } = rectMeters(rect);
   return (widthM * heightM) / 1e4;
 }
 
@@ -44,7 +44,7 @@ export function rectHectares(rect) {
  * so a partial pixel still counts) and the total.
  */
 export function gridShape(rect, scaleM) {
-  const { widthM, heightM } = rectMetres(rect);
+  const { widthM, heightM } = rectMeters(rect);
   const cols = Math.max(1, Math.ceil(widthM / scaleM));
   const rows = Math.max(1, Math.ceil(heightM / scaleM));
   return { cols, rows, nPixels: cols * rows };
@@ -59,6 +59,6 @@ export function gridShape(rect, scaleM) {
 export function checkAoi(rect, opts) {
   const ha = rectHectares(rect);
   const { cols, rows, nPixels } = gridShape(rect, opts.scaleM);
-  const { widthM, heightM } = rectMetres(rect);
+  const { widthM, heightM } = rectMeters(rect);
   return { ha, km2: ha / 100.0, cols, rows, nPixels, widthM, heightM, scaleM: opts.scaleM };
 }

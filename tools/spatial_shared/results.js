@@ -10,9 +10,9 @@
  * an opacity slider fades the overlay against the imagery. Click any pixel for
  * its daily depletion and ETc.
  *
- * Two rules that make the colours mean something:
- *   - Each variable's colour scale is anchored to its whole-season min/max
- *     (not the current day), so a colour means the same thing on every day.
+ * Two rules that make the colors mean something:
+ *   - Each variable's color scale is anchored to its whole-season min/max
+ *     (not the current day), so a color means the same thing on every day.
  *   - Invalid pixels (masked soil, never-clear) are transparent holes.
  */
 
@@ -23,7 +23,7 @@ import { downloadBlob } from '../../ui/download.js';
 import { buildGeoTiff } from './geotiff_writer.js';
 import { baseLayers } from './basemaps.js';
 
-/* Small set of vanilla colour maps (control colours; interpolated per pixel).
+/* Small set of vanilla color maps (control colors; interpolated per pixel).
    No Plotly/library dependency so they work on a plain <canvas>. */
 const CMAPS = {
   greens: [[247, 252, 245], [199, 233, 192], [116, 196, 118], [35, 139, 69], [0, 68, 27]],
@@ -66,7 +66,7 @@ function lerp(cmap, t) {
   return [Math.round(a[0] + (b[0] - a[0]) * f), Math.round(a[1] + (b[1] - a[1]) * f), Math.round(a[2] + (b[2] - a[2]) * f)];
 }
 
-/* Variable catalogue. kind picks the data source; cmap the colours; fixed pins
+/* Variable catalog. kind picks the data source; cmap the colors; fixed pins
    the scale (Ks is always 0–1). */
 const VARS = {
   Kcb: { label: 'Kcb (vegetation)', unit: '–', kind: 'daily', cmap: 'greens' },
@@ -201,7 +201,7 @@ export function createResults() {
   }
 
   /* Season-anchored [lo, hi]: for a daily variable, the min/max across the
-     WHOLE run so the colour scale never shifts under the slider. */
+     WHOLE run so the color scale never shifts under the slider. */
   function rangeFor(varName) {
     if (ranges[varName]) return ranges[varName];
     const m = VARS[varName];
@@ -212,7 +212,7 @@ export function createResults() {
     else scan(slice(varName, 0));
     if (!(hi > lo)) { hi = lo + 1; }
     /* A diverging layer (e.g. ETo−P) is anchored symmetrically about 0 so the
-       neutral colour always sits at zero — deficit one side, surplus the other. */
+       neutral color always sits at zero — deficit one side, surplus the other. */
     if (m.diverging) { const A = Math.max(Math.abs(lo), Math.abs(hi)) || 1; lo = -A; hi = A; }
     return (ranges[varName] = [lo, hi]);
   }
@@ -461,7 +461,7 @@ export function createResults() {
     legend.addTo(map);
 
     /* Live value-at-cursor readout (bottom-left), so exact magnitudes are
-       legible on any layer without reading them off the colour ramp. */
+       legible on any layer without reading them off the color ramp. */
     readoutCtl = L.control({ position: 'bottomleft' });
     readoutCtl.onAdd = () => { readoutEl = L.DomUtil.create('div', 'spatial-readout'); readoutEl.style.display = 'none'; return readoutEl; };
     readoutCtl.addTo(map);

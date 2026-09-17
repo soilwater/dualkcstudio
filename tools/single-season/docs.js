@@ -54,7 +54,7 @@ interpolated between observations). Short interior gaps in <code class="var">eto
 
 <h3>Irrigation modes</h3>
 <table>
-  <tr><th>mode</th><th>behaviour</th></tr>
+  <tr><th>mode</th><th>behavior</th></tr>
   <tr><td>Rainfed</td><td>no irrigation, the CSV's irrig column is ignored</td></tr>
   <tr><td>Data</td><td>applies the CSV's <code class="var">irrig</code> column as the
       gross applied depth; the method (wetted fraction) and efficiency still apply</td></tr>

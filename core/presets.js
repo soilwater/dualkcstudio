@@ -83,13 +83,13 @@ export const STRICT_OPTIONS = Object.freeze({
   // feedback is the entire effect.
   surfaceTranspiration: false,
 
-  // ── Deep diffusive/vapour loss from below Ze ────────────────────────────
+  // ── Deep diffusive/vapor loss from below Ze ────────────────────────────
   // Not in the manual. Once the surface layer is exhausted FAO-56 has no
   // mechanism left to dry the profile, yet a rainless multi-month fallow
-  // keeps drying as the vapour-pressure gradient pulls moisture up from
+  // keeps drying as the vapor-pressure gradient pulls moisture up from
   // depth. This adds that flux.
   //
-  // The coefficient is a lumped surrogate for vapour transport, NOT a
+  // The coefficient is a lumped surrogate for vapor transport, NOT a
   // capillary rise (CR) term. 0.01 comes from Lollato et al. (2016,
   // Agron. J. 108:745-757) for southern Great Plains summer fallow — but
   // it was fitted inside a model where soil evaporation already depleted

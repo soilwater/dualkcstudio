@@ -30,7 +30,7 @@
  *
  * ── What is optional ──────────────────────────────────────────────────────
  *
- * See presets.js. Every flag defaults to the manual's own behaviour, so
+ * See presets.js. Every flag defaults to the manual's own behavior, so
  * `runModel(soil, crop, mgmt, wx)` with no options is strict FAO-56.
  *
  * ── Contract ──────────────────────────────────────────────────────────────
@@ -205,7 +205,7 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
   let warnings = [];
 
   // PART 1 — Crop and canopy series
-  // Single, homogeneous soil: one fc/wp/ini characterises the evaporation
+  // Single, homogeneous soil: one fc/wp/ini characterizes the evaporation
   // layer, the root zone, and the subsoil alike (FAO-56's default; layered
   // data, if any, is depth-weighted into this single pair upstream).
   let rz_fc = soil.fc;
@@ -440,7 +440,7 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
       T_ewToday = TToday * share * Ks_surf;
     }
 
-    // Step 6: optional deep diffusive/vapour loss (Lollato et al. 2016). The
+    // Step 6: optional deep diffusive/vapor loss (Lollato et al. 2016). The
     // root zone always extends below Ze (Zr >= Ze + 0.2 m), so this loss is
     // always charged to the root zone; it never draws from the subsoil.
     let E_diffToday = 0.0;

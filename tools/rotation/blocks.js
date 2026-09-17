@@ -309,7 +309,7 @@ export function runRotation({ weatherDf, startDate, blocks, numCycles = 1, soil,
   };
 }
 
-/* ── "Add component…" catalogue ────────────────────────────────────────── */
+/* ── "Add component…" catalog ────────────────────────────────────────── */
 
 /* Winter/summer is a UI grouping only — cropSettings doesn't tag it. */
 const COVER_CROP_SEASON = {

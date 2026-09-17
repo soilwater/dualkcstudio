@@ -15,7 +15,7 @@ import { REQUIRED_COLS } from '../core/weather.js';
 import { el } from './dom.js';
 import { openModal, callout } from './components.js';
 
-/** Every column name the app recognises (lowercase), in display order. */
+/** Every column name the app recognizes (lowercase), in display order. */
 const KNOWN_COLUMNS = [
   { key: 'date', label: 'Date', unit: 'YYYY-MM-DD' },
   { key: 'tmin', label: 'Min air temperature', unit: '°C' },
@@ -26,7 +26,7 @@ const KNOWN_COLUMNS = [
   { key: 'wspd', label: 'Wind speed at 2 m', unit: 'm s⁻¹' },
   { key: 'prcp', label: 'Precipitation', unit: 'mm' },
   { key: 'eto', label: 'Reference ET — supply to skip computing it', unit: 'mm d⁻¹' },
-  { key: 'vpd', label: 'Vapour-pressure deficit', unit: 'kPa' },
+  { key: 'vpd', label: 'Vapor-pressure deficit', unit: 'kPa' },
   { key: 'rn', label: 'Net radiation', unit: 'MJ m⁻² d⁻¹' },
   { key: 'kcb_obs', label: 'Observed basal crop coefficient', unit: '–' },
   { key: 'latitude', label: 'Latitude', unit: '°N' },
@@ -76,7 +76,7 @@ export function showColumnModal(result, requiredKeys = REQUIRED_COLS) {
     body.append(callout('error', `Missing required column${result.missing.length > 1 ? 's' : ''}: ${result.missing.join(', ')}. The file can't be used until these are present.`));
   }
   if (result.unknown.length) {
-    body.append(callout('warn', `Not a standard column name: ${result.unknown.join(', ')}. If one is a renamed weather variable (say a temperature column not called “tmin”/“tmax”), rename it to match the list below so the tools recognise it.`));
+    body.append(callout('warn', `Not a standard column name: ${result.unknown.join(', ')}. If one is a renamed weather variable (say a temperature column not called “tmin”/“tmax”), rename it to match the list below so the tools recognize it.`));
   }
   if (result.missing.includes('eto')) {
     const tip = callout('warn', '');
@@ -86,7 +86,7 @@ export function showColumnModal(result, requiredKeys = REQUIRED_COLS) {
   }
   body.append(
     el('p', { class: 'hint', style: { margin: '0.7rem 0 0.4rem' } },
-      'The app uses these exact lowercase column names. Rename your file’s headers to match — no other spellings are recognised.'),
+      'The app uses these exact lowercase column names. Rename your file’s headers to match — no other spellings are recognized.'),
     referenceTable(requiredKeys),
   );
   return openModal('Weather CSV columns', body);

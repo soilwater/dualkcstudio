@@ -16,7 +16,7 @@ record. Pick the method your available variables support.</p>
   <li><strong>Upload</strong> a CSV with a <code class="var">date</code> column and
       the weather variables your chosen method needs (see the Methods table
       below) — the tool computes ETo from what you provide; it does not fetch
-      any data for you. Extra or unrecognised columns are ignored. Recognised
+      any data for you. Extra or unrecognized columns are ignored. Recognized
       weather columns use the same names as the rest of the app:
       <code>tmin, tmax, rmin, rmax, srad, wspd, prcp</code>, plus optional
       <code>vpd</code> and <code>rn</code> (net radiation).</li>

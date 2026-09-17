@@ -19,7 +19,7 @@ app/main.js              top bar, hash router, mode lifecycle  ← add your rout
 app/brand.js             the app's display name
 app/docs.js              the "? Docs" drawer
 app/geeSession.js        Earth Engine sign-in persistence (only the GEE tools use it)
-styles/tokens.css        every colour/size as a CSS variable
+styles/tokens.css        every color/size as a CSS variable
 styles/base.css          reset + app frame (top bar, workbench, docs drawer)
 styles/components.css    groups, control rows, buttons, cards, tables, etc.
 ui/                      shared widgets
@@ -126,8 +126,8 @@ directories; put anything genuinely shared in `tools/spatial_shared/`.
    internally, export it from `core/` so everyone gets it.
 2. **Engine-shaped names everywhere.** UI state uses the exact field names
    `runModel` consumes (`Kcb_ini`, `L_dev`, `residue_cover` …). No mapping layers.
-3. **Colours from `styles/tokens.css` and `VIZ` only.** The series order in
-   `VIZ` is a colour-blind-safety property — append, never reshuffle.
+3. **Colors from `styles/tokens.css` and `VIZ` only.** The series order in
+   `VIZ` is a color-blind-safety property — append, never reshuffle.
 4. **Charts through `ui/plotly.js` only**, so fonts, margins, hover and the
    modebar stay identical app-wide.
 5. **Plain JavaScript.** `.map/.filter/.reduce` are welcome; deep

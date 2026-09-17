@@ -61,7 +61,7 @@ export function createWeatherPanel({ onChange, onData } = {}) {
 
   function loadCsv(text, name) {
     /* Enforce the model column contract (date, prcp, eto): a missing required
-       column shows the shared modal and aborts; an unrecognised extra just
+       column shows the shared modal and aborts; an unrecognized extra just
        warns. */
     const check = checkColumns(text, MODEL_REQUIRED);
     if (!check.ok) { showColumnModal(check, MODEL_REQUIRED); if (check.missing.length) return; }

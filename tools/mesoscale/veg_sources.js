@@ -18,7 +18,7 @@
  *   bands        — { evi: bandName } — ONE index per source
  *   scaleFactor  — band value → index units (1 for a float composite)
  *   qa           — { band, max } to mask by a reliability band, or null
- *   scaleM       — grid resolution in metres (a coarser grid is a MEAN of pixels)
+ *   scaleM       — grid resolution in meters (a coarser grid is a MEAN of pixels)
  *   nativeM      — source resolution, for mean aggregation onto a coarser grid
  */
 

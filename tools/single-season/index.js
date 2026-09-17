@@ -117,7 +117,7 @@ function create() {
 
   const root = el('div', { class: 'view' }, wb.el);
 
-  /* ── Behaviour ──────────────────────────────────────────────────────── */
+  /* ── Behavior ──────────────────────────────────────────────────────── */
 
   function updateHead() {
     const s = weather.getSummary();

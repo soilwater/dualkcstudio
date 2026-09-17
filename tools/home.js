@@ -41,7 +41,7 @@ const glyph = {
     <path d="M70 48 C78 46 86 32 100 24 C106 21 110 20 114 20" fill="none" stroke="#2a78d6" stroke-width="2.5" stroke-linecap="round"/>
     <circle cx="70" cy="48" r="3.5" fill="#2a78d6"/>
   </svg>`,
-  /* Sun above a crop canopy, water vapour rising: reference ET. */
+  /* Sun above a crop canopy, water vapor rising: reference ET. */
   eto: `<svg viewBox="0 0 120 56" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <circle cx="26" cy="18" r="8" fill="#eda100"/>
     <g stroke="#eda100" stroke-width="2" stroke-linecap="round">
@@ -79,7 +79,7 @@ const glyph = {
     </g>
   </svg>`,
   /* A fine pixel grid trimmed to an irregular field outline: per-pixel
-     modelling at field scale (finer tiles than Mesoscale). */
+     modeling at field scale (finer tiles than Mesoscale). */
   field: `<svg viewBox="0 0 120 56" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     ${(() => {
       /* Each row: [firstCol, lastCol] of tiles present — a solid, hole-free

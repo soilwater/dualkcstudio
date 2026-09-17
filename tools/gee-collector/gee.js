@@ -119,7 +119,7 @@ export function kcbSeries(weather, vi, { index = 'ndvi', soil, veg, interpolate 
 
 /**
  * Merges daily weather with the vegetation index into one ready-to-use CSV. Columns
- * are exactly the ones the model tools recognise; `kcb_obs` is sparse (only on
+ * are exactly the ones the model tools recognize; `kcb_obs` is sparse (only on
  * clear-observation days) or daily (interpolated), per options.
  */
 export function assembleCsv(weather, vi, opts = {}) {

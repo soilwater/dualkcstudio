@@ -67,7 +67,7 @@ function wheelLabel(name) {
  * Rotation wheel — one revolution = ONE cycle of the rotation. Three
  * concentric rings: rotation year (inner),
  * calendar month anchored at the start date (middle), and the crop/fallow
- * components (outer, block-coloured). Center shows the % of the cycle under
+ * components (outer, block-colored). Center shows the % of the cycle under
  * a crop. Shows the rotation STRUCTURE, so it renders live from the builder,
  * before any run.
  */

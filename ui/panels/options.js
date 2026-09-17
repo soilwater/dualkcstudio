@@ -30,7 +30,7 @@ export function createOptionsPanel({ onChange } = {}) {
     kcbStartsAtZero: checkbox({ label: 'Kcb ramps from zero at planting', onChange: changed }),
     climateAdjustKcb: checkbox({ label: 'Climate-adjust tabulated Kcb', onChange: changed }),
     surfaceTranspiration: checkbox({ label: 'Transpiration from evap. layer', onChange: changed }),
-    deepDiffusiveLoss: checkbox({ label: 'Deep diffusive / vapour loss', onChange: (val) => { coeffRow.hidden = !val; changed(); } }),
+    deepDiffusiveLoss: checkbox({ label: 'Deep diffusive / vapor loss', onChange: (val) => { coeffRow.hidden = !val; changed(); } }),
   };
 
   /* The climate adjustment (FAO-56 Eq. 70) needs real wind & RHmin; without

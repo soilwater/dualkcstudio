@@ -22,7 +22,7 @@
  *   subsoil   Zr .. Zr_profile Ss   water content, mm
  *
  * The surface, root zone and subsoil are compartments of ONE homogeneous
- * soil, all characterised by the single soil.fc / soil.wp. They are
+ * soil, all characterized by the single soil.fc / soil.wp. They are
  * deliberately NOT given separate retention properties: the root/subsoil
  * boundary moves every day, and if the two sides had different fc/wp the
  * profile's total capacity would jump each time it moved. Initial water is a

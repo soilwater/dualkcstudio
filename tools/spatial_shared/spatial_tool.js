@@ -539,7 +539,7 @@ export function createSpatialTool(config) {
     } catch (e) { setAuth('err', `OAuth setup failed: ${e.message}`); }
   }
 
-  /* Mask soil to NaN for pixels whose centre falls outside a drawn circle or
+  /* Mask soil to NaN for pixels whose center falls outside a drawn circle or
      polygon, so run_grid skips them and the field is clipped to the boundary.
      Pixel size uses the target cols/rows (the sampling transform); iteration
      uses the actual returned shape (which may be cropped by a pixel). */
