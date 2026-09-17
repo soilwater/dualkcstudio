@@ -1,6 +1,6 @@
 /* Copyright (c) August 2026 Andres Patrignani. */
 /**
- * tools/field-scale/assemble.js — pure transforms from raw Earth Engine pixel
+ * tools/spatial_shared/assemble.js — pure transforms from raw Earth Engine pixel
  * arrays to the per-pixel inputs run_grid.js needs. No Earth Engine, no DOM:
  * it takes the 2-D arrays sampleRectangle returns and produces flat
  * Float32Array grids, so the EE/auth layer (ee_data.js) stays thin.

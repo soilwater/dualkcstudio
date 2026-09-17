@@ -1,6 +1,6 @@
 /* Copyright (c) August 2026 Andres Patrignani. */
 /**
- * tools/field-scale/soil_ptf.js — soil texture → FAO-56 water limits, per pixel.
+ * tools/spatial_shared/soil_ptf.js — soil texture → FAO-56 water limits, per pixel.
  *
  * Saxton & Rawls (2006) pedotransfer functions turn sand / clay / organic-
  * matter fractions (POLARIS or SoilGrids) into the volumetric field capacity

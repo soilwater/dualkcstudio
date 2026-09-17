@@ -1,6 +1,6 @@
 /* Copyright (c) August 2026 Andres Patrignani. */
 /**
- * tools/field-scale/boundaries.js — pick a US county / state / ASD as the AOI.
+ * tools/spatial_shared/boundaries.js — pick a US county / state / ASD as the AOI.
  *
  * A self-contained add-on for the spatial tools (Field Scale + Mesoscale): it
  * lazily fetches the boundary GeoJSONs in assets/, offers a Level → State →

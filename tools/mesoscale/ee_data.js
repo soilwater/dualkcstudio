@@ -1,6 +1,6 @@
 /* Copyright (c) August 2026 Andres Patrignani. */
 /**
- * tools/field-scale/ee_data.js — Earth Engine acquisition for the spatial grid.
+ * tools/mesoscale/ee_data.js — Earth Engine acquisition for the spatial grid.
  *
  * The only Earth-Engine-dependent file in the spatial mode. Everything it
  * returns is a plain aligned grid; the maths lives in the pure assemble.js /

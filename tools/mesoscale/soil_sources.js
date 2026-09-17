@@ -1,12 +1,11 @@
 /* Copyright (c) August 2026 Andres Patrignani. */
 /**
- * tools/field-scale/soil_sources.js — Field Scale's soil registry.
+ * tools/mesoscale/soil_sources.js — Mesoscale's soil registry.
  *
- * Owned by Field Scale alone (Mesoscale has its own copy). POLARIS (30 m, CONUS)
- * is the default; SoilGrids (250 m, global) is offered for fields outside CONUS.
- * Like veg_sources.js, adding a soil product is a config entry. Each source
- * builds, for a property (sand / clay / organic matter), a TWO-band image whose
- * depth means are computed server-side:
+ * Owned by Mesoscale alone (Field Scale has its own copy). SoilGrids (ISRIC,
+ * 250 m, global) is the mesoscale soil source — it mean-aggregates gently onto
+ * the coarse grids. Each source builds, for a property (sand / clay / organic
+ * matter), a TWO-band image whose depth means are computed server-side:
  *   surface — thickness-weighted mean over 0–15 cm (the evaporation layer, Ze)
  *   profile — thickness-weighted mean over 0–100 cm (the root-zone proxy, Zr)
  * Doing the depth averaging in Earth Engine (rather than fetching all six depth
@@ -14,10 +13,6 @@
  * aggregation to two bands per property — the soil fetch is the slow step, so
  * this is where the time goes. ee_data.js samples the image; assemble.js runs
  * the Saxton-Rawls PTF on each depth mean to get FC/WP.
- *
- * A soil source is paired with a veg source (veg_sources.js `soil` field) so it
- * matches the run's resolution: POLARIS (30 m, CONUS) with the 30 m Landsat
- * field runs, SoilGrids (250 m, global) with the mesoscale runs.
  */
 
 import { SOILGRIDS_CONV, SOILGRIDS_DEPTH } from '../spatial_shared/assemble.js';
@@ -39,30 +34,7 @@ function twoBand(band) {
   return wmean(band, SURFACE).rename('surface').addBands(wmean(band, PROFILE).rename('profile'));
 }
 
-/* POLARIS: sand/clay in %, organic matter as log10(%) → 10^v. (CONUS only.) */
-const POLARIS_CONV = {
-  sand: (v) => v,
-  clay: (v) => v,
-  om: (v) => Math.pow(10, v),
-};
-
-/* Order = dropdown order; the first entry is the default (POLARIS: the CONUS
-   default, matching the US-first stack). SoilGrids is the global fallback. */
 export const SOIL_SOURCES = {
-  polaris: {
-    id: 'polaris',
-    label: 'POLARIS (30 m, CONUS)',
-    region: 'conus',
-    nativeM: 30,
-    props: { sand: 'sand', clay: 'clay', om: 'om' },
-    conv: POLARIS_CONV,
-    /* POLARIS is an ImageCollection per property, one image per depth. */
-    propImage(ee, eeProp) {
-      const coll = ee.ImageCollection(`projects/sat-io/open-datasets/polaris/${eeProp}_mean`);
-      return twoBand((id) => ee.Image(coll.filter(ee.Filter.stringContains('system:index', id)).first()));
-    },
-    note: 'POLARIS 30 m soil texture (sand / clay / organic matter) → field capacity and wilting point via Saxton-Rawls. CONUS only.',
-  },
   soilgrids: {
     id: 'soilgrids',
     label: 'SoilGrids (250 m, global)',
@@ -75,12 +47,12 @@ export const SOIL_SOURCES = {
       const img = ee.Image(`projects/soilgrids-isric/${eeProp}_mean`);
       return twoBand((id) => img.select(`${eeProp}_${SOILGRIDS_DEPTH[id]}_mean`));
     },
-    note: 'ISRIC SoilGrids 250 m soil texture → field capacity and wilting point via Saxton-Rawls. Global — use for fields outside CONUS.',
+    note: 'ISRIC SoilGrids 250 m soil texture → field capacity and wilting point via Saxton-Rawls, sampled per pixel across the region.',
   },
 };
 
 export const SOIL_SOURCES_LIST = Object.values(SOIL_SOURCES);
 
 export function getSoilSource(id) {
-  return SOIL_SOURCES[id] || SOIL_SOURCES.polaris;
+  return SOIL_SOURCES[id] || SOIL_SOURCES.soilgrids;
 }

@@ -1,6 +1,6 @@
 /* Copyright (c) August 2026 Andres Patrignani. */
 /**
- * tools/field-scale/results.js — the map view of a gridded run.
+ * tools/spatial_shared/results.js — the map view of a gridded run.
  *
  * A Leaflet map with a satellite basemap and the result grid drawn over it as
  * a semi-transparent image overlay, so every variable sits in its real

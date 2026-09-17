@@ -1,6 +1,6 @@
 /* Copyright (c) August 2026 Andres Patrignani. */
 /**
- * tools/field-scale/grid.js — AOI geometry, target grid, and the size cap.
+ * tools/spatial_shared/grid.js — AOI geometry, target grid, and the size cap.
  *
  * Pure geometry: no Earth Engine, no DOM. A rectangular area of interest (the
  * drawn shape's bounding box) is described in lon/lat; this module reports its

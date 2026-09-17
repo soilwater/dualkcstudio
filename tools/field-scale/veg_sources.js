@@ -1,15 +1,16 @@
 /* Copyright (c) August 2026 Andres Patrignani. */
 /**
- * tools/field-scale/veg_sources.js — the registry of vegetation-index datasets.
+ * tools/field-scale/veg_sources.js — Field Scale's vegetation-index registry.
  *
- * Adding a satellite VI product is a config entry here, not a code change:
- * ee_data.js reads these fields generically. The chosen source also SETS THE
- * GRID RESOLUTION for the whole run — soil and weather are resampled to it.
+ * Owned by Field Scale alone (Mesoscale has its own copy), so adding or changing
+ * a field VI product here cannot affect Mesoscale. Adding a satellite VI product
+ * is a config entry, not a code change: ee_data.js reads these fields
+ * generically. The chosen source also SETS THE GRID RESOLUTION for the whole
+ * run — soil and weather are resampled to it.
  *
  * Fields
- *   group        — which tool offers it ('field' | 'meso')
- *   weather      — 'centroid' (one GRIDMET series, broadcast) or 'spatial'
- *                  (per-pixel GRIDMET grid)
+ *   weather      — 'centroid' (one weather series, broadcast) or 'spatial'
+ *                  (per-pixel weather grid)
  *   collection   — Earth Engine ImageCollection id (or a label, when build is set)
  *   build        — optional (ee, { start, endExcl, region, maxCloud }) → an
  *                  ImageCollection that already carries the index band(s) named
@@ -27,7 +28,9 @@
  *   scaleM       — grid resolution in metres (one per source; a grid coarser
  *                  than nativeM is a MEAN of the source pixels)
  *   nativeM      — source resolution, for mean aggregation onto a coarser grid
- *   soil         — id of the paired soil source (soil_sources.js)
+ *
+ * Soil and weather are chosen independently (soil_sources.js / weather_sources.js),
+ * not paired to the VI source, so a global VI can run over global soil/weather.
  */
 
 /* EVI's denominator (NIR + 6 RED − 7.5 BLUE + 1) can approach zero over water,
@@ -87,13 +90,12 @@ function buildSentinel2(ee, { start, endExcl, region, maxCloud }) {
     .map(prep);
 }
 
-/* Order = dropdown order; the first field entry is the default (30 m: safe
-   for most fields). */
+/* Order = dropdown order; the first entry is the default (30 m: safe for most
+   fields). */
 export const VEG_SOURCES = {
   sentinel2Evi30: {
     id: 'sentinel2Evi30',
     label: 'Sentinel-2 EVI — 30 m',
-    group: 'field',
     weather: 'centroid',
     collection: 'COPERNICUS/S2_SR_HARMONIZED',
     build: buildSentinel2,
@@ -103,14 +105,12 @@ export const VEG_SOURCES = {
     qa: null,                     /* clouds masked in build() */
     scaleM: 30,                   /* mean of the 10 m pixels: nine times fewer pixels */
     nativeM: 10,
-    soil: 'polaris',
-    note: 'EVI from Sentinel-2 surface reflectance (2019 on, 5-day revisit) with the Cloud Score+ mask; scenes above the cloud-cover tolerance are skipped whole. Each 30 m pixel is the mean of the 10 m pixels. POLARIS soil.',
+    note: 'EVI from Sentinel-2 surface reflectance (2019 on, 5-day revisit) with the Cloud Score+ mask; scenes above the cloud-cover tolerance are skipped whole. Each 30 m pixel is the mean of the 10 m pixels. Global.',
   },
 
   sentinel2Evi10: {
     id: 'sentinel2Evi10',
     label: 'Sentinel-2 EVI — 10 m',
-    group: 'field',
     weather: 'centroid',
     collection: 'COPERNICUS/S2_SR_HARMONIZED',
     build: buildSentinel2,
@@ -120,14 +120,12 @@ export const VEG_SOURCES = {
     qa: null,                     /* clouds masked in build() */
     scaleM: 10,
     nativeM: 10,
-    soil: 'polaris',
-    note: 'EVI from Sentinel-2 surface reflectance (2019 on, 5-day revisit) with the Cloud Score+ mask; scenes above the cloud-cover tolerance are skipped whole. Native 10 m: small fields only — a large grid may exceed Earth Engine memory. POLARIS soil.',
+    note: 'EVI from Sentinel-2 surface reflectance (2019 on, 5-day revisit) with the Cloud Score+ mask; scenes above the cloud-cover tolerance are skipped whole. Native 10 m: small fields only — a large grid may exceed Earth Engine memory. Global.',
   },
 
   landsatSrEvi: {
     id: 'landsatSrEvi',
     label: 'Landsat 8/9 EVI — 30 m',
-    group: 'field',
     weather: 'centroid',
     collection: 'LANDSAT/LC08+LC09/C02/T1_L2',
     build: buildLandsatSrEvi,
@@ -137,38 +135,12 @@ export const VEG_SOURCES = {
     qa: null,                     /* clouds are masked in build(); nothing further to screen */
     scaleM: 30,
     nativeM: 30,
-    soil: 'polaris',
-    note: 'EVI from Landsat 8 and 9 surface reflectance (2013 on, 8-day revisit) with the QA_PIXEL cloud, shadow and snow mask; scenes above the cloud-cover tolerance are skipped whole. 30 m over POLARIS soil — use for periods before 2019.',
-  },
-
-  /* Mesoscale: large watersheds and regions. VIIRS (500 m native) mean-
-     aggregates gently to the coarser grids; a 30 m source at this scale
-     overflows Earth Engine's memory, so Landsat is field-only. */
-  viirs4km: {
-    id: 'viirs4km',
-    label: 'VIIRS VNP13A1 EVI',
-    group: 'meso',
-    weather: 'spatial',
-    collection: 'NASA/VIIRS/002/VNP13A1',
-    bands: { evi: 'EVI' },        /* EVI only, to match the field tool */
-    scaleFactor: 1,               /* this asset's EVI is already ~0–1 (NOT ×10⁴) */
-    qa: { band: 'pixel_reliability', max: 2 },   /* rank: 0–2 = Excellent/Good/Acceptable */
-    scaleM: 4000,
-    nativeM: 500,                 /* VIIRS 500 m aggregated (mean) to the 4 km grid */
-    soil: 'soilgrids',
-    note: 'VIIRS 500 m EVI over SoilGrids soil — pick the grid resolution (500 m–4 km) to match the region size. Large watersheds and regions.',
+    note: 'EVI from Landsat 8 and 9 surface reflectance (2013 on, 8-day revisit) with the QA_PIXEL cloud, shadow and snow mask; scenes above the cloud-cover tolerance are skipped whole. 30 m, global — use for periods before 2019.',
   },
 };
 
-const VEG_LIST = Object.values(VEG_SOURCES);
-export const FIELD_SOURCES = VEG_LIST.filter((s) => s.group === 'field');
-export const MESO_SOURCES = VEG_LIST.filter((s) => s.group === 'meso');
+export const FIELD_SOURCES = Object.values(VEG_SOURCES);
 
 export function getVegSource(id) {
   return VEG_SOURCES[id] || VEG_SOURCES.sentinel2Evi30;
-}
-
-/** The single index key a source provides, e.g. 'evi'. */
-export function sourceIndex(src) {
-  return Object.keys(src.bands)[0];
 }

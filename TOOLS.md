@@ -103,14 +103,22 @@ kansas_north_west*.csv   bundled 46-year example weather record (raw, and with E
 Plotly is the only library loaded globally. Leaflet, Leaflet.draw, Google
 Identity Services and the Earth Engine API are loaded **lazily, on first open,
 by the tool that needs them** (see `ensureLibs()` in `tools/gee-collector/` and
-`tools/field-scale/`). Follow that pattern: don't add `<script>` tags to
-`index.html`, and don't add a library when a hundred lines of plain JavaScript
-will do (`tools/field-scale/geotiff_writer.js` is a GeoTIFF writer for exactly
-that reason).
+`tools/spatial_shared/spatial_tool.js`). Follow that pattern: don't add
+`<script>` tags to `index.html`, and don't add a library when a hundred lines of
+plain JavaScript will do (`tools/spatial_shared/geotiff_writer.js` is a GeoTIFF
+writer for exactly that reason).
 
 If two tools are the same machinery with different data, write a factory:
-`tools/field-scale/index.js` exports `createSpatialTool(config)`, and both Field
-Scale and Mesoscale are one-line modules calling it.
+`tools/spatial_shared/spatial_tool.js` exports `createSpatialTool(config)`, and
+both Field Scale and Mesoscale are thin modules calling it. The shared, scale-
+agnostic parts (the factory, the FAO-56 grid math, the map/results, the GeoTIFF
+writer) live in `tools/spatial_shared/`. Each tool **owns its own data layer** —
+`ee_data.js`, `veg_sources.js`, `soil_sources.js` under `tools/field-scale/` and
+`tools/mesoscale/` respectively — and injects them into the factory via config
+(`sources`, `getVegSource`, `getSoilSource`, `collectGrid`). This is deliberate:
+a change to one tool's sources (e.g. a global weather option in Field Scale)
+physically cannot reach the other. Do **not** import across the two tool
+directories; put anything genuinely shared in `tools/spatial_shared/`.
 
 ## Rules that keep it maintainable
 

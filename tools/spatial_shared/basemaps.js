@@ -1,6 +1,6 @@
 /* Copyright (c) August 2026 Andres Patrignani. */
 /**
- * tools/field-scale/basemaps.js — shared Leaflet basemaps for the spatial maps.
+ * tools/spatial_shared/basemaps.js — shared Leaflet basemaps for the spatial maps.
  *
  * The default is a HYBRID view: Esri satellite imagery with transparent
  * reference overlays (boundaries/places + roads) on top, so a field can be

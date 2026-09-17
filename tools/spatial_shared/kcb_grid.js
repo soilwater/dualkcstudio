@@ -1,6 +1,6 @@
 /* Copyright (c) August 2026 Andres Patrignani. */
 /**
- * tools/field-scale/kcb_grid.js — vegetation index → per-pixel daily Kcb stack.
+ * tools/spatial_shared/kcb_grid.js — vegetation index → per-pixel daily Kcb stack.
  *
  * Two steps:
  *   1. Rescale each cloud-free VI observation to Kcb with a linear map

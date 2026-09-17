@@ -1,6 +1,6 @@
 /* Copyright (c) August 2026 Andres Patrignani. */
 /**
- * tools/field-scale/run_grid.js — the gridded run: engine.js, one pixel at a time.
+ * tools/spatial_shared/run_grid.js — the gridded run: engine.js, one pixel at a time.
  *
  * There is no second copy of the water balance here: a spatial run is a loop
  * over pixels that calls runModel with that pixel's soil, Kcb series and (for

@@ -1,6 +1,6 @@
 /* Copyright (c) August 2026 Andres Patrignani. */
 /**
- * tools/field-scale/geotiff_writer.js — a minimal, dependency-free writer for a
+ * tools/spatial_shared/geotiff_writer.js — a minimal, dependency-free writer for a
  * single-band Float32 GeoTIFF in EPSG:4326.
  *
  * geotiff.js can read GeoTIFFs but its writer mishandles floating-point bands
