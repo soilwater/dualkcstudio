@@ -101,25 +101,20 @@ function maskDailyToValid(stack, validMask, T, nPixels) {
 }
 
 /**
- * Add a constant calibration offset (volumetric, m³/m³) to every finite pixel's
- * field capacity and wilting point, keeping the product's spatial variability
- * while shifting the level to match local lab/field measurements. Both the
- * surface (Ze) and root-zone limits are shifted so the two stay consistent.
- * Wilting point is clamped below field capacity (min 0.01 gap) so TAW stays
- * positive; both are clamped to [0, 0.6] m³/m³. 0/0 is a no-op.
+ * Override the mapped soil water limits with a single, uniform pair of values
+ * (volumetric, m³/m³) applied to every pixel in the field — for when the user
+ * knows the local field capacity and wilting point (e.g. a management zone or a
+ * soil pit) better than the POLARIS/SoilGrids estimate. Only finite pixels are
+ * touched, so the field footprint (the drawn/clipped mask and product no-data)
+ * is preserved; masked pixels stay NaN and are not run. Both the surface (Ze)
+ * and root-zone limits are set, so the profile is uniform. Caller guarantees
+ * fc > wp.
  */
-function offsetSoil(soil, dFc, dWp) {
-  if (!dFc && !dWp) return;
-  const clamp = (v) => Math.min(0.6, Math.max(0, v));
+function overrideSoilConstant(soil, fc, wp) {
   for (let p = 0; p < soil.rootzone_fc.length; p++) {
-    for (const d of ['rootzone', 'surface']) {
-      const fcK = `${d}_fc`, wpK = `${d}_wp`;
-      if (!Number.isFinite(soil[fcK][p])) continue;
-      const fc = clamp(soil[fcK][p] + dFc);
-      const wp = Math.min(clamp(soil[wpK][p] + dWp), fc - 0.01);
-      soil[fcK][p] = fc;
-      soil[wpK][p] = Math.max(0, wp);
-    }
+    if (!Number.isFinite(soil.rootzone_fc[p])) continue;   /* keep the mask */
+    soil.rootzone_fc[p] = fc; soil.rootzone_wp[p] = wp;
+    soil.surface_fc[p] = fc; soil.surface_wp[p] = wp;
   }
 }
 
@@ -207,18 +202,27 @@ export function createSpatialTool(config) {
     gSoil.body.append(ctrl('Source', soilSel.el), soilNote);
   }
 
-  /* Optional calibration offsets: shift every pixel's field capacity and wilting
-     point by a constant (volumetric, m³/m³) to align the product with local
-     lab/field measurements while keeping its spatial variability. 0 = product
-     as-is. Enabled per tool via config.soilAdjust (Field Scale). */
-  const fcOffIn = numInput({ value: 0, min: -0.15, max: 0.15, step: 0.01 });
-  const wpOffIn = numInput({ value: 0, min: -0.15, max: 0.15, step: 0.01 });
+  /* Optional constant soil override: use the mapped product as-is, or enter a
+     single field capacity / wilting point applied uniformly to every pixel in
+     the field — for when the user knows the local values (a management zone, a
+     soil pit) better than POLARIS/SoilGrids. Enabled per tool via
+     config.soilAdjust (Field Scale). */
+  const soilModeSel = selectInput({
+    options: [{ value: 'product', label: 'From product (mapped)' }, { value: 'constant', label: 'Constant (enter values)' }],
+    value: 'product', onChange: (v) => { soilConstRow.hidden = v !== 'constant'; },
+  });
+  const fcValIn = numInput({ value: 0.30, min: 0.05, max: 0.6, step: 0.01 });
+  const wpValIn = numInput({ value: 0.12, min: 0, max: 0.5, step: 0.01 });
+  const soilConstRow = el('div', {},
+    ctrl('Field capacity', fcValIn.el, { unit: 'm³/m³' }),
+    ctrl('Wilting point', wpValIn.el, { unit: 'm³/m³' }));
+  soilConstRow.hidden = true;
   if (config.soilAdjust) {
     if (!gSoil) gSoil = group('Soil', { open: true });
     gSoil.body.append(
-      el('div', { class: 'hint', style: { marginTop: '0.55rem', lineHeight: '1.4' } }, 'Calibration offsets — added to every pixel to match local lab/field data, keeping the map’s variability. 0 = product as-is.'),
-      ctrl('Field capacity offset', fcOffIn.el, { unit: 'm³/m³' }),
-      ctrl('Wilting point offset', wpOffIn.el, { unit: 'm³/m³' }),
+      el('div', { class: 'hint', style: { marginTop: '0.55rem', lineHeight: '1.4' } }, 'Constant values are applied uniformly to the whole field, replacing the mapped estimate.'),
+      ctrl('Soil water limits', soilModeSel.el),
+      soilConstRow,
     );
   }
 
@@ -584,6 +588,10 @@ export function createSpatialTool(config) {
     if (!start || !end || end < start) { setStatus('Pick a valid start/end.', 'error'); return; }
     const rect = currentRect();
     if (!rect) { setStatus('Draw a field boundary first.', 'error'); return; }
+    const soilConstant = config.soilAdjust && soilModeSel.get() === 'constant';
+    if (soilConstant && !(fcValIn.get() > wpValIn.get())) {
+      setStatus('Field capacity must be greater than wilting point.', 'error'); return;
+    }
     runBtn.disabled = true;
     const ee = window.ee;
     try {
@@ -605,9 +613,9 @@ export function createSpatialTool(config) {
         clipSoilToShape(data.soil, rect, gsz.cols, gsz.rows, data.rows, data.cols, state.fieldShape);
       }
 
-      /* Calibration: shift FC/WP by the user's constant offsets before the run
-         (no-op when both are 0). Keeps the product's variability. */
-      offsetSoil(data.soil, fcOffIn.get() || 0, wpOffIn.get() || 0);
+      /* Constant soil override: replace the mapped FC/WP with the user's uniform
+         values across the field footprint (validated above; product mask kept). */
+      if (soilConstant) overrideSoilConstant(data.soil, fcValIn.get(), wpValIn.get());
 
       results.setViNote(viSummaryLine(data, sourceIndex(state.vegSource)));
       setStatus('Building Kcb from vegetation index…');
