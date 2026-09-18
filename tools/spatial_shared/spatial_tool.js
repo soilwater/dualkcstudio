@@ -603,7 +603,7 @@ export function createSpatialTool(config) {
       });
 
       const grid = { cols: data.cols, rows: data.rows, nPixels: data.cols * data.rows };
-      const scalars = { Ze: 0.10, REW_frac: 0.5, Zr_profile: Math.max(2.0, zrMax + 0.3), faw0: fawIn.get() / 100 };
+      const scalars = { Ze: 0.10, REW_frac: 0.35, Zr_profile: Math.max(2.0, zrMax + 0.3), faw0: fawIn.get() / 100 };
       const crop = { Zr_max: zrMax, h_max: hIn.get(), Kcb_full: kcbMaxIn.get(), p_tab: pIn.get(), Kc_min: 0.15 };
       const mgmt = { curve_number: cnIn.get(), irrigation_mode: 'rainfed', residue_cover: (residueIn.get() || 0) / 100 };
 

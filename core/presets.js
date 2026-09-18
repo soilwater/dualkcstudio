@@ -28,6 +28,15 @@
  *     energy-limited rather than storage-limited.
  *   - The wind / RHmin term of Eq. 70 and Eq. 72 held inside the manual's
  *     stated limits (1-6 m/s, 20-80%).
+ *   - Wetting is taken to occur early in the day: Kr and Ks are computed from
+ *     the depletion after the day's rain and irrigation, as in the "De,i
+ *     start" column of the manual's worked examples (Example 35-38, Annex 8).
+ *   - REW capped at 12 mm, the largest value in Table 19.
+ *   - Rain of less than 3 mm does not reset the wetted fraction fw to 1
+ *     (Ch. 7). The rain itself is still fully counted in both balances.
+ *   - Dr may exceed TAW by 1000 (0.5 wp) Ze, the water Eq. 73 lets the
+ *     evaporation layer lose below wilting point. Ks is 0 there regardless;
+ *     this only keeps evaporation from a wilting-point root zone on the books.
  *
  * Things that are always on and ARE departures from the manual, flagged here
  * so nobody has to read engine.js to find out:

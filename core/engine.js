@@ -77,6 +77,17 @@ import { resolveOptions } from './presets.js';
 // the dent stage, which is also where Table 11's late-season stage begins.
 const AUTO_IRRIG_SEASON_FRACTION = 0.80;
 
+// Table 19's largest readily evaporable water, mm. REW is entered as a fraction
+// of TEW, and with a deep Ze or a wide fc - wp that fraction can run well past
+// anything the manual tabulates, stretching stage-1 drying by a day or more.
+const REW_MAX = 12.0;
+
+// Rain below this depth (mm, after runoff) does not reset the wetted fraction
+// fw to 1 (Ch. 7, "Fraction of soil surface wetted": light precipitation of
+// less than about 3-4 mm can be ignored when setting fw). Only fw is affected.
+// The rain itself still enters both the De and Dr balances in full.
+const FW_RAIN_THRESHOLD = 3.0;
+
 // Scalar-or-array access.
 function at(v, i) { return Array.isArray(v) ? v[i] : v; }
 function isNum(v) { return typeof v === 'number' && isFinite(v); }
@@ -86,8 +97,8 @@ function isNum(v) { return typeof v === 'number' && isFinite(v); }
 // the root zone — only the depth (Ze) and the 0.5·wp term differ.
 function evaporableWater(soil) {
   let TEW = Math.max(1000.0 * (soil.fc - 0.5 * soil.wp) * soil.Ze, 1.0);
-  let REW = Math.min(soil.REW_frac * TEW, TEW);
-  return { TEW, REW };
+  let REW = Math.min(soil.REW_frac * TEW, TEW, REW_MAX);
+  return { TEW, REW, capped: soil.REW_frac * TEW > REW_MAX + 1e-9 };
 }
 
 // Residue / organic mulch. FAO-56 Ch. 10, "Effects of surface mulches —
@@ -358,6 +369,14 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
   let ew = evaporableWater(soil);
   let TEW = ew.TEW;
   let REW = ew.REW;
+  if (ew.capped) warnings.push(`soil.REW_frac x TEW = ${(soil.REW_frac * TEW).toFixed(1)} mm exceeds FAO-56 Table 19's largest REW; REW was capped at ${REW_MAX} mm.`);
+
+  // Eq. 73 lets the evaporation layer dry to 0.5 wp, and that layer is part of
+  // the root zone, so soil evaporation can take the root zone this far past
+  // TAW. Ks is unaffected (it is already 0 at TAW); without this allowance the
+  // Dr <= TAW bound would discard evaporation that the De book has delivered,
+  // and a dry fallow's balance would not close.
+  let Dr_extra = 1000.0 * 0.5 * rz_wp * Ze;
 
   for (let n = 0; n < N; n++) {
     let ETo = df[n].ETo;
@@ -376,7 +395,8 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
     let Zs = Math.max(Zr_profile - Zr[n], 0.0);
 
     let TAW = 1000.0 * (rz_fc - rz_wp) * Zr[n];
-    let Dr_prev = Math.min(Math.max(state.Dr, 0.0), TAW);
+    let DrMax = TAW + Dr_extra;
+    let Dr_prev = Math.min(Math.max(state.Dr, 0.0), DrMax);
     let De_prev = De;
 
 
@@ -392,9 +412,14 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
       : Math.max(irrig_allocation - cum_irrig - I, 0.0);
 
     if (management.irrigation_mode === 'auto' && canIrrigate && autoOk[n]) {
-      // Gross depth: what it takes to refill the root zone AFTER application
-      // losses (Dr / efficiency), capped by the event amount and allocation.
-      if (Dr_prev >= management.mad * TAW) I += Math.min(Dr_prev / irrig_eff, management.irrig_amount, remainingAlloc);
+      // The trigger sees today's rain first (wetting occurs early in the day,
+      // as everywhere else in the model), so a rain that lifts the root zone
+      // back above the MAD threshold cancels the event, and one that does not
+      // still shrinks it. Gross depth: what it takes to refill the root zone
+      // AFTER application losses (Dr / efficiency), capped by the event
+      // amount and allocation.
+      let Dr_rain = Math.max(Dr_prev - Pnet, 0.0);
+      if (Dr_rain >= management.mad * TAW) I += Math.min(Dr_rain / irrig_eff, management.irrig_amount, remainingAlloc);
     } else if (management.irrigation_mode === 'scheduled') {
       let sched = management.irrig_schedule || [];
       if (canIrrigate && sched.includes(n)) I += Math.min(management.irrig_amount, remainingAlloc);
@@ -406,13 +431,23 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
     cum_irrig += I;
     let I_net = I * irrig_eff;
 
-    if (Pnet > 0.0 || I_net > 0.0) fw_event = (Pnet >= I_net) ? 1.0 : fw_irrig;
+    // Wetted fraction, fw — the manual's simplified rules (Ch. 7):
+    //   irrigation, with or without rain      -> fw of the irrigation system
+    //   significant rain with no irrigation   -> fw = 1
+    //   neither                               -> fw of the previous day
+    // "Significant" is FW_RAIN_THRESHOLD; lighter rain leaves fw alone.
+    if (I_net > 0.0) fw_event = fw_irrig;
+    else if (Pnet >= FW_RAIN_THRESHOLD) fw_event = 1.0;
 
     // Step 3: soil evaporation (Eq. 71, 72, 74, 75). One convention throughout
-    // the model: today's coefficients come from the state at the END of the
-    // previous day — Kr from De,i-1 (Eq. 74 as written) and Ks from Dr,i-1
-    // (Eq. 84) — so rain or irrigation today shows up in E and T tomorrow.
-    let KrToday = (De_prev <= REW) ? 1.0 : Math.max((TEW - De_prev) / (TEW - REW), 0.0);
+    // the model: wetting is assumed to occur early in the day, so today's
+    // coefficients come from the depletion at the START of the day, after
+    // today's rain and irrigation — the "De,i start" and "Dr,i start" columns
+    // of the manual's worked examples (Example 35-38, Annex 8). Rain today
+    // evaporates today and irrigation today relieves stress today.
+    let De_start = Math.max(De_prev - Pnet - I_net / fw_irrig, 0.0);
+    let Dr_start = Math.max(Dr_prev - Pnet - I_net, 0.0);
+    let KrToday = (De_start <= REW) ? 1.0 : Math.max((TEW - De_start) / (TEW - REW), 0.0);
     let fewToday = Math.max(Math.min(1.0 - fc[n], fw_event), 1e-6);
     // Residue / organic mulch scales the evaporation component itself (Ch. 10).
     let KeToday = residueFactor(residue_cover)
@@ -424,7 +459,7 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
     let p = Math.min(Math.max(p_tab + 0.04 * (5.0 - ETc_ns), 0.1), 0.8);
     let RAW = p * TAW;
 
-    let KsToday = (Dr_prev < RAW) ? 1.0 : Math.max((TAW - Dr_prev) / (TAW - RAW), 0.0);
+    let KsToday = (Dr_start < RAW) ? 1.0 : Math.max((TAW - Dr_start) / (TAW - RAW), 0.0);
     let TToday = KsToday * Kcb[n] * ETo;
 
     // Step 5: Eq. 77's surface transpiration term, T_ew — diagnostic only,
@@ -434,9 +469,9 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
     if (options.surfaceTranspiration) {
       let share = Math.min(Ze / Math.max(Zr[n], 1e-9), 1.0);
       let RAW_surf = p * TEW;
-      let Ks_surf = (De_prev < RAW_surf)
+      let Ks_surf = (De_start < RAW_surf)
         ? 1.0
-        : Math.max((TEW - De_prev) / Math.max(TEW - RAW_surf, 1e-9), 0.0);
+        : Math.max((TEW - De_start) / Math.max(TEW - RAW_surf, 1e-9), 0.0);
       T_ewToday = TToday * share * Ks_surf;
     }
 
@@ -445,8 +480,8 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
     // always charged to the root zone; it never draws from the subsoil.
     let E_diffToday = 0.0;
     if (options.deepDiffusiveLoss) {
-      let wetness = Math.max(1.0 - Dr_prev / Math.max(TAW, 1e-9), 0.0);
-      E_diffToday = options.deepDiffusiveCoeff * (De_prev / TEW) * wetness * ETo;
+      let wetness = Math.max(1.0 - Dr_start / Math.max(TAW, 1e-9), 0.0);
+      E_diffToday = options.deepDiffusiveCoeff * (De_start / TEW) * wetness * ETo;
     }
 
     // Step 7: net infiltration.
@@ -457,11 +492,12 @@ export function runModel(soil, cropInput, management, weatherDf, userOptions) {
     De = Math.min(Math.max(De_prev - Pnet - I_net / fw_irrig + EToday / fewToday + T_ewToday + DPe, 0.0), TEW);
 
     // Step 9: root-zone book, Dr (Eq. 85/86) — the full ETc, not just T.
-    // Bounded to [0, TAW] per the manual: 0 is field capacity (excess
-    // infiltration percolates as DPr), TAW is the wilting point.
+    // Bounded below at 0, field capacity (excess infiltration percolates as
+    // DPr), and above at TAW plus the evaporation layer's sub-wilting-point
+    // water (see Dr_extra).
     let ETcToday = TToday + EToday;
     let DPr = Math.max(netIn - ETcToday - E_diffToday - Dr_prev, 0.0);
-    state.Dr = Math.min(Math.max(Dr_prev - netIn + ETcToday + E_diffToday + DPr, 0.0), TAW);
+    state.Dr = Math.min(Math.max(Dr_prev - netIn + ETcToday + E_diffToday + DPr, 0.0), DrMax);
 
     let deepPercToday = profile.receivePercolation(state, DPr, { rz_fc, Zs_n: Zs });
 
